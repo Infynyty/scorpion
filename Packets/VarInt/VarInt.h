@@ -13,4 +13,6 @@ VarInt* writeVarInt(int givenInt);
 
 unsigned char* get_bytes(VarInt* varInt);
 
+unsigned char* get_length(VarInt* varInt);
+
 #endif //CMC_VARINT_H

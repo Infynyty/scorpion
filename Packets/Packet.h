@@ -8,11 +8,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-const int PROTOCOL_VERSION = 760;
-
 typedef struct Header Header;
 
 Header* header_new(const char ip_address[256], unsigned short port);
+void print_header(Header* header);
 
 
 #endif //CMC_PACKET_H
