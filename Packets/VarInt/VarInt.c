@@ -6,51 +6,59 @@
 #include <string.h>
 #include "VarInt.h"
 #include <stdio.h>
-#include <byteswap.h>
+#include <stdint.h>
+#include <math.h>
 
 struct VarInt {
     unsigned char length;
-    unsigned char* bytes;
+    int8_t* bytes;
 };
 
-int swap_int32( int val ) {
-    val = ((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF );
-    return (val << 16) | ((val >> 16) & 0xFFFF);
-}
+typedef struct Boolean {
+    uint8_t value : 1;
+}__attribute__((packed)) Boolean;
 
 VarInt* writeVarInt(int givenInt) {
-
     VarInt* varInt = malloc(sizeof *varInt);
-    int example = 50;
+    Boolean array[40] = {0};
+    for (int i = 0; i < 8 * 4; ++i) {
+        int value = (givenInt & (int) pow(2, i)) >> i;
+        Boolean boolean = {value};
+        array[i] = boolean;
+    }
 
-    int SEGMENT_BITS = 0x7F;
-    int CONTINUE_BIT = 0x80;
+    int8_t byteArray[5] = {0};
+    char i = (char) givenInt;
+    for (int i = 0; i < 4; ++i) {
+        int getBytes = givenInt & (0xff << 8*i);
+        byteArray[i] = getBytes >> 8*i;
+    }
 
-    memcpy(varInt->bytes, calloc(1, sizeof(int)), (int) sizeof(get_length(varInt)) * sizeof(int));
 
+    int lastTrueBitIndex = 0;
 
-    char array[5] = {0};
-    for (int i = 0; i < 5; ++i) {
-        int values = swap_int32(SEGMENT_BITS >> (i * 8) & givenInt);
-        memcpy(array, &values, sizeof(int));
-        if (array[0] & CONTINUE_BIT) {
-            for (int j = 0; j < i; ++j) {
-                array[j] = array[j+1];
-            }
-            char shifted = array[0] << 7;
-            char leftover = array[0] | CONTINUE_BIT;
-            array[0] = leftover;
-            array[1] = leftover;
+    for (int i = 4; i >= 0; --i) {
+        if (byteArray[i] != 0) {
+            lastTrueBitIndex = i;
+            break;
         }
     }
-    memcpy(varInt->bytes, &example, sizeof( int));
-
-    varInt->length = sizeof(int);
-
-//
-//    varInt->length = sizeof(int);
-//    memcpy(varInt->bytes, calloc(1, sizeof(int)), (int) sizeof(get_length(varInt)) * sizeof(int));
-
+    int inputSizeInBytes = lastTrueBitIndex;
+    int outputSizeInBytes = 0;
+    for (int i = 0; i < 5; ++i) {
+        if(i <= inputSizeInBytes) {
+            for (int j = 5; j >= i; --j) {
+                byteArray[j] = (byteArray[j] >> 1) & (byteArray[j - 1] << 7);
+            }
+            byteArray[i] = byteArray[i] & 128;
+            outputSizeInBytes++;
+        }
+    }
+    memcpy(varInt->bytes, &byteArray, outputSizeInBytes);
+    varInt->length = outputSizeInBytes;
+    for (int i = 0; i < 5; ++i) {
+        printf("%d", byteArray[i]);
+    }
     return varInt;
 }
 
@@ -58,8 +66,8 @@ unsigned char* get_bytes(VarInt* varInt) {
     return varInt->bytes;
 }
 
-unsigned char* get_length(VarInt* varInt) {
-    return &varInt->length;
+unsigned char get_length(VarInt* varInt) {
+    return varInt->length;
 }
 
 

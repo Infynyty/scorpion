@@ -18,7 +18,7 @@ Header* header_new(const char ip_address[255], unsigned short port) {
     Header* header = malloc(sizeof(*header));
     VarInt* varInt = writeVarInt(MC_PROTOCOL_VERSION);
 
-    memcpy(header->protocol_version, get_bytes(varInt), (int) sizeof(int) * *get_length(varInt));
+    memcpy(header->protocol_version, get_bytes(varInt), (int) sizeof(int) * get_length(varInt));
     strcpy(header->ip_address, ip_address);
     header->port = port;
     return header;
