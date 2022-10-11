@@ -17,13 +17,11 @@
 
 
 int main() {
-    VarInt* varInt = writeVarInt(255);
-    char array[get_length(varInt)];
-    memcpy(&array, get_bytes(varInt), get_length(varInt));
+    VarInt* varInt = writeVarInt(-1);
 
+    printf("Bytes: ");
     for (int i = 0; i < get_length(varInt); ++i) {
-        printf("\nNumber in bytes: %d", get_bytes(varInt)[i]);
-        printf("\nNumber: %d", array[i]);
+        printf("%d ", get_bytes(varInt)[i]);
     }
 
 

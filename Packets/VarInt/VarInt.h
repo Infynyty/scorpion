@@ -11,7 +11,7 @@ typedef struct VarInt VarInt;
 
 unsigned char* readVarInt(int varInt);
 
-VarInt* writeVarInt(int givenInt);
+VarInt* writeVarInt(unsigned int givenInt);
 
 unsigned char* get_bytes(VarInt* varInt);
 
