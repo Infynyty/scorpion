@@ -10,10 +10,7 @@
 #include <math.h>
 #include <stdbool.h>
 
-struct VarInt {
-    char length;
-    int8_t* bytes;
-};
+struct VarInt;
 
 void write_int_to_bit_array(int givenInt, bool *array) {
     for (int i = 0; i < 8 * 4; ++i) {
@@ -73,11 +70,12 @@ VarInt* writeVarInt(unsigned int givenInt) {
 
     bitarray_to_bytearray(array, byteArray);
     varInt->length = byte_array_size;
+    //TODO: fix
     memcpy(varInt->bytes, byteArray, byte_array_size);
     return varInt;
 }
 
-unsigned char* get_bytes(VarInt* varInt) {
+int8_t* get_bytes(VarInt* varInt) {
     return varInt->bytes;
 }
 
