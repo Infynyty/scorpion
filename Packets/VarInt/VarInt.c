@@ -8,26 +8,52 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
+#include <stdbool.h>
 
 struct VarInt {
-    unsigned char length;
+    char length;
     int8_t* bytes;
 };
 
-typedef struct Boolean {
-    uint8_t value : 1;
-}__attribute__((packed)) Boolean;
-
 VarInt* writeVarInt(int givenInt) {
     VarInt* varInt = malloc(sizeof *varInt);
-    Boolean array[40] = {0};
+    bool array[40] = {0};
     for (int i = 0; i < 8 * 4; ++i) {
         int value = (givenInt & (int) pow(2, i)) >> i;
-        Boolean boolean = {value};
+        bool boolean = {value};
         array[i] = boolean;
     }
 
-    int8_t byteArray[5] = {0};
+    int lastTrueBitIndex = 0;
+
+    for (int i = 39; i >= 0; --i) {
+        if (array[i] == true) {
+            lastTrueBitIndex = i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < 5; ++i) {
+        if ((i+1)*8 <= lastTrueBitIndex) {
+            for (int j = 39; j > (i+1)*8-1; --j) {
+                array[j] = array[j-1];
+            }
+            array[(i+1)*8-1] = true;
+        } else {
+            break;
+        }
+    }
+    uint8_t byteArray[5] = {0};
+
+    for (int i = 0; i < 5; ++i) {
+        uint8_t byte = 0;
+        for (int j = 0; j < 7; ++j) {
+            byte += pow(2, j) * array[(i+1)*j];
+        }
+        byteArray[i] = byte;
+    }
+
+
     char i = (char) givenInt;
     for (int i = 0; i < 4; ++i) {
         int getBytes = givenInt & (0xff << 8*i);
@@ -35,14 +61,7 @@ VarInt* writeVarInt(int givenInt) {
     }
 
 
-    int lastTrueBitIndex = 0;
 
-    for (int i = 4; i >= 0; --i) {
-        if (byteArray[i] != 0) {
-            lastTrueBitIndex = i;
-            break;
-        }
-    }
     int inputSizeInBytes = lastTrueBitIndex;
     int outputSizeInBytes = 0;
     for (int i = 0; i < 5; ++i) {

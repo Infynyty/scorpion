@@ -17,7 +17,7 @@
 
 
 int main() {
-    VarInt* varInt = writeVarInt(256);
+    VarInt* varInt = writeVarInt(255);
     char array[get_length(varInt)];
     memcpy(&array, get_bytes(varInt), get_length(varInt));
 
