@@ -9,7 +9,7 @@
 
 typedef struct VarInt {
     char length;
-    int8_t* bytes;
+    int8_t bytes[5];
 } __attribute__((__packed__)) VarInt;
 
 unsigned char* readVarInt(int varInt);

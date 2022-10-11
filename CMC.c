@@ -26,7 +26,7 @@ int main() {
         fprintf(stderr, "WSAStartup failed.\n");
         exit(1);
     }
-    sockD = socket( AF_INET, SOCK_STREAM, 0);
+    sockD = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #endif
 #ifdef __APPLE__
     sockD = socket( PF_LOCAL, SOCK_STREAM, 0);
@@ -38,8 +38,8 @@ int main() {
 
     struct sockaddr_in server_address;
 //    uint32_t ip_address = 2130706433; // 127.0.0.1 as an integer
-    server_address.sin_addr.s_addr = ip_address;
-    server_address.sin_port = 25565;
+    server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server_address.sin_port = htons(25565);
     server_address.sin_family = AF_INET;
 
     printf("Trying to connect to port %d.\n", server_address.sin_port);
@@ -49,11 +49,17 @@ int main() {
         printf("Fehler!");
         return -1;
     }
+    printf("Connected succesfully!");
+
+    char* ptr = get_ptr_buffer(header);
+    for (int i = 0; i < get_header_size(header); ++i) {
+        printf("%c", *(ptr + i));
+    }
 
     send(sockD, get_ptr_buffer(header), get_header_size(header), 0);
     char answer[32767] = {0};
     read(sockD, &answer, 32767);
-    for (int i = 0; i < 32767; ++i) {
+    for (int i = 0; i < 1000; ++i) {
         printf("%c", answer[i]);
     }
 

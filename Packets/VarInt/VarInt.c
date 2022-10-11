@@ -71,7 +71,7 @@ VarInt* writeVarInt(unsigned int givenInt) {
     bitarray_to_bytearray(array, byteArray);
     varInt->length = byte_array_size;
     //TODO: fix
-    memcpy(varInt->bytes, byteArray, byte_array_size);
+    memcpy(varInt->bytes, byteArray, 5);
     return varInt;
 }
 
