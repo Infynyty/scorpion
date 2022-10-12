@@ -4,55 +4,55 @@
 
 #include <stdio.h>
 #include "Packet.h"
-#include "VarInt/VarInt.h"
+#include "VarInt/MCVarInt.h"
+
 
 const int MC_PROTOCOL_VERSION = 760;
 const int NEXT_STATE_STATUS = 1;
 const int NEXT_STATE_LOGIN = 2;
 
 struct Header {
-    VarInt* protocol_version;
-    char ip_address[255];
+    char packet_id;
+    MCVarInt* protocol_version;
+    MCVarInt* address_length;
+    char* ip_address;
     unsigned short port;
-    VarInt* next_state;
+    MCVarInt* next_state;
 };
 
-Header* header_new(const char ip_address[255], unsigned short port) {
+Header* header_new(char* ip_address, unsigned char ip_length, unsigned short port) {
     Header* header = malloc(sizeof(*header));
-    VarInt* protocol_version = writeVarInt(MC_PROTOCOL_VERSION);
-    VarInt* next_state = writeVarInt(NEXT_STATE_LOGIN);
+    MCVarInt* protocol_version = writeVarInt(MC_PROTOCOL_VERSION);
+    MCVarInt* next_state = writeVarInt(NEXT_STATE_STATUS);
+    MCVarInt* var_ip_length = writeVarInt(ip_length);
 
+    header->packet_id = 0x00;
     header->protocol_version = protocol_version;
-    strcpy(header->ip_address, ip_address);
+    header->address_length = var_ip_length;
+    header->ip_address = ip_address;
     header->port = port;
-    header->next_state = writeVarInt(NEXT_STATE_STATUS);
+    header->next_state = next_state;
     return header;
-}
-
-void print_header(Header* header) {
-    printf("\n");
-    for (int i = 0; i < 256; i++)
-        printf("%d", header->ip_address[i]);
 }
 
 int get_header_size(Header* header) {
     int size = 0;
-    size += sizeof(header->ip_address);
+    size += sizeof(header->packet_id);
+    size += 9;
+    size += get_length(header->address_length);
     size += get_length(header->next_state);
     size += get_length(header->protocol_version);
     size += sizeof(header->port);
     return size;
 }
 
-char* get_ptr_buffer(Header* header) {
-    char* buffer = malloc(get_header_size(header));
-    int index = 0;
-    memcpy(buffer, get_bytes(header->protocol_version), get_length(header->protocol_version));
-    index += get_length(header->protocol_version);
-    memcpy(buffer + index, header->ip_address, sizeof(header->ip_address));
-    index += sizeof(header->ip_address);
-    memcpy(buffer + index, &header->port, sizeof(header->port));
-    index += sizeof(header->port);
-    memcpy(buffer + index, get_bytes(header->next_state), get_length(header->next_state));
+Buffer* get_ptr_buffer(Header* header) {
+    Buffer* buffer = buffer_new();
+    buffer_write(buffer, &header->packet_id, sizeof(header->packet_id));
+    buffer_write(buffer, get_bytes(header->protocol_version), get_length(header->protocol_version));
+    buffer_write(buffer, get_bytes(header->address_length), get_length(header->address_length));
+    buffer_write(buffer, header->ip_address, 9);
+    buffer_write(buffer, &header->port, sizeof(header->port));
+    buffer_write(buffer, get_bytes(header->next_state), get_length(header->next_state));
     return buffer;
 }

@@ -4,13 +4,12 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "VarInt.h"
-#include <stdio.h>
+#include "MCVarInt.h"
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>
 
-struct VarInt;
+struct MCVarInt;
 
 void write_int_to_bit_array(int givenInt, bool *array) {
     for (int i = 0; i < 8 * 4; ++i) {
@@ -31,9 +30,12 @@ int get_index_of_last_nonnull_element_of_bit_array(const bool *array) {
     return lastTrueBitIndex;
 }
 
-void int_bitarray_to_varint_bitarray(bool *array, int last_nonnull_byte_index, int *size) {
+void int_bitarray_to_varint_bitarray(bool *array, int *size) {
+    int last_nonnull_bit_index = get_index_of_last_nonnull_element_of_bit_array(array);
+    int last_nonnull_byte_index = (int) ceil(last_nonnull_bit_index / 8.0) - 1;
+
     for (int i = 0; i < 5; ++i) {
-        if (i <= last_nonnull_byte_index) {
+        if (i < last_nonnull_byte_index) {
             for (int j = 39; j > (i+1)*8-1; --j) {
                 array[j] = array[j-1];
             }
@@ -55,16 +57,14 @@ void bitarray_to_bytearray(const bool *array, uint8_t *byteArray) {
     }
 }
 
-VarInt* writeVarInt(unsigned int givenInt) {
-    VarInt* varInt = malloc(sizeof *varInt);
+MCVarInt* writeVarInt(unsigned int givenInt) {
+    MCVarInt* varInt = malloc(sizeof *varInt);
     bool array[40] = {0};
     write_int_to_bit_array(givenInt, array);
 
-    int last_nonnull_bit_index = get_index_of_last_nonnull_element_of_bit_array(array);
 
-    int last_nonnull_byte_index = (int) ceil(last_nonnull_bit_index / 8.0) - 1;
     int byte_array_size = 1;
-    int_bitarray_to_varint_bitarray(array, last_nonnull_byte_index, &byte_array_size);
+    int_bitarray_to_varint_bitarray(array, &byte_array_size);
 
     uint8_t byteArray[5] = {0};
 
@@ -75,11 +75,26 @@ VarInt* writeVarInt(unsigned int givenInt) {
     return varInt;
 }
 
-int8_t* get_bytes(VarInt* varInt) {
+int varint_read(const char* bytes, int* byte_size) {
+    *byte_size = 0;
+    int result = 0;
+    const int CONTINUE_BIT = 0b10000000;
+    const int SEGMENT_BITS = 0b01111111;
+    for (int i = 0; i < 5; ++i) {
+        result += (*(bytes+i) & SEGMENT_BITS) << (8*i);
+        (*byte_size)++;
+        if (((*(bytes+i)) & CONTINUE_BIT) != (CONTINUE_BIT)) {
+            break;
+        }
+    }
+    return result;
+}
+
+uint8_t* get_bytes(MCVarInt* varInt) {
     return varInt->bytes;
 }
 
-unsigned char get_length(VarInt* varInt) {
+unsigned char get_length(MCVarInt* varInt) {
     return varInt->length;
 }
 
