@@ -7,9 +7,9 @@
 
 #include <string.h>
 #include <winsock2.h>
-#include "Packets/VarInt/MCVarInt.h"
 #include <errno.h>
 #include <stdio.h>
+#include "VarInt/MCVarInt.h"
 
 typedef struct Buffer {
     char* bytes;
@@ -22,7 +22,8 @@ void buffer_free(Buffer* buffer);
 void buffer_write(Buffer* buffer, void* bytes, const size_t length_in_bytes);
 int buffer_send(const Buffer* buffer, const SOCKET socket);
 int buffer_read_varint(Buffer* buffer);
-void buffer_read_string(Buffer* buffer, char* string);
+void buffer_read_string(Buffer* buffer, char* string_destination);
+void buffer_receive(Buffer* buffer, SOCKET socket, size_t length);
 
 
 #endif //CMC_BUFFER_H

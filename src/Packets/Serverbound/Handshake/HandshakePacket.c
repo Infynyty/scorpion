@@ -3,15 +3,15 @@
 //
 
 #include <stdio.h>
-#include "Packet.h"
-#include "VarInt/MCVarInt.h"
+#include "HandshakePacket.h"
+#include "../../../Util/VarInt/MCVarInt.h"
 
 
-const int MC_PROTOCOL_VERSION = 760;
+const int MC_PROTOCOL_VERSION = 128;
 const int NEXT_STATE_STATUS = 1;
 const int NEXT_STATE_LOGIN = 2;
 
-struct Header {
+struct HandshakePacket {
     char packet_id;
     MCVarInt* protocol_version;
     MCVarInt* address_length;
@@ -20,8 +20,8 @@ struct Header {
     MCVarInt* next_state;
 };
 
-Header* header_new(char* ip_address, unsigned char ip_length, unsigned short port) {
-    Header* header = malloc(sizeof(*header));
+HandshakePacket* header_new(char* ip_address, unsigned char ip_length, unsigned short port) {
+    HandshakePacket* header = malloc(sizeof(*header));
     MCVarInt* protocol_version = writeVarInt(MC_PROTOCOL_VERSION);
     MCVarInt* next_state = writeVarInt(NEXT_STATE_STATUS);
     MCVarInt* var_ip_length = writeVarInt(ip_length);
@@ -35,7 +35,7 @@ Header* header_new(char* ip_address, unsigned char ip_length, unsigned short por
     return header;
 }
 
-int get_header_size(Header* header) {
+int get_header_size(HandshakePacket* header) {
     int size = 0;
     size += sizeof(header->packet_id);
     size += 9;
@@ -46,7 +46,7 @@ int get_header_size(Header* header) {
     return size;
 }
 
-Buffer* get_ptr_buffer(Header* header) {
+Buffer* get_ptr_buffer(HandshakePacket* header) {
     Buffer* buffer = buffer_new();
     buffer_write(buffer, &header->packet_id, sizeof(header->packet_id));
     buffer_write(buffer, get_bytes(header->protocol_version), get_length(header->protocol_version));

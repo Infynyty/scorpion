@@ -4,10 +4,11 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#include "Packets/Packet.h"
 
 #ifdef _WIN32
     #include <winsock2.h>
+#include "Packets/Serverbound/Handshake/HandshakePacket.h"
+
 #endif
 
 #ifdef __APPLE__
@@ -30,7 +31,7 @@ int main() {
     int sockD = socket( PF_LOCAL, SOCK_STREAM, 0);
 #endif
     char address[] = "localhost";
-    Header* header = header_new(address, strlen(address), 25565);
+    HandshakePacket* header = header_new(address, strlen(address), 25565);
 
     struct sockaddr_in server_address;
 //    uint32_t ip_address = 2130706433; // 127.0.0.1 as an integer
@@ -58,13 +59,12 @@ int main() {
     send(sockD, &ping, 1, 0);
     send(sockD, test, sizeof(long), 0);
 
-    char* answer = calloc(32767, sizeof(char));
-    int packets = recv(sockD, answer, 2, 0);
-    for (int i = 0; i < packets; ++i) {
-        printf("%c", answer[i]);
-    }
-
-    printf("\n Packets received: %d", packets);
+    Buffer* answer = buffer_new();
+    buffer_receive(answer, sockD, 32000);
+    char string[32000] = {0};
+    buffer_read_string(buffer, string);
+    printf("String: %s", string);
+    buffer_free(answer);
 
     close(connection_status);
 

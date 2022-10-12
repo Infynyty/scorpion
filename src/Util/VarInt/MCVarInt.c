@@ -19,23 +19,16 @@ void write_int_to_bit_array(int givenInt, bool *array) {
     }
 }
 
-int get_index_of_last_nonnull_element_of_bit_array(const bool *array) {
-    int lastTrueBitIndex = 0;
-    for (int i = 39; i >= 0; --i) {
-        if (array[i] == true) {
-            lastTrueBitIndex = i;
-            break;
-        }
-    }
-    return lastTrueBitIndex;
-}
-
 void int_bitarray_to_varint_bitarray(bool *array, int *size) {
-    int last_nonnull_bit_index = get_index_of_last_nonnull_element_of_bit_array(array);
-    int last_nonnull_byte_index = (int) ceil(last_nonnull_bit_index / 8.0) - 1;
 
     for (int i = 0; i < 5; ++i) {
-        if (i < last_nonnull_byte_index) {
+        bool is_next_byte_used = false;
+        for (int j = 0; j < 7; ++j) {
+            if (array[(i+1)*(j)]) {
+                is_next_byte_used = true;
+            }
+        }
+        if (is_next_byte_used) {
             for (int j = 39; j > (i+1)*8-1; --j) {
                 array[j] = array[j-1];
             }

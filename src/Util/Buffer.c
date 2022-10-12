@@ -4,9 +4,11 @@
 
 #include "Buffer.h"
 
+#define MAX_BUFFER_SIZE 2097151 // maximum length for a packet
+
 
 Buffer* buffer_new() {
-    Buffer* buffer = calloc(0, sizeof(Buffer));
+    Buffer* buffer = malloc(sizeof(Buffer));
     buffer->bytes = calloc(0, sizeof(char));
     buffer->byte_size = 0;
     buffer->current_byte = buffer->bytes;
@@ -14,11 +16,20 @@ Buffer* buffer_new() {
 }
 
 void buffer_free(Buffer* buffer) {
+    if (buffer->current_byte != buffer->bytes) {
+        free(buffer->current_byte);
+    }
     free(buffer->bytes);
     free(buffer);
+    buffer = NULL;
 }
 
 void buffer_write(Buffer* buffer, void* bytes, const size_t length_in_bytes) {
+    if (buffer->byte_size + length_in_bytes >= MAX_BUFFER_SIZE) {
+        fprintf(stderr, "Buffer length (%d) too big!", buffer->byte_size + length_in_bytes);
+        free(buffer->bytes);
+        exit(EXIT_FAILURE);
+    }
     //Resize array
     char* temp = realloc(buffer->bytes, (buffer->byte_size + length_in_bytes) * sizeof(char));
     if (temp == NULL) {
@@ -51,7 +62,13 @@ int buffer_read_varint(Buffer* buffer) {
     return varint;
 }
 
-void buffer_read_string(Buffer* buffer, char* string) {
+void buffer_read_string(Buffer* buffer, char* string_destination) {
     int string_length = buffer_read_varint(buffer);
-    memcpy(string, buffer->current_byte, string_length);
+    memcpy(string_destination, buffer->current_byte, string_length);
+}
+
+void buffer_receive(Buffer* buffer, SOCKET socket, size_t length) {
+    char bytes[length];
+    recv(socket, bytes, (int) length, 0);
+    buffer_write(buffer, bytes, length);
 }
