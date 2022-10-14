@@ -90,7 +90,7 @@ int varint_receive(SOCKET socket) {
     const int CONTINUE_BIT = 0b10000000;
     const int SEGMENT_BITS = 0b01111111;
     for (int i = 0; i < 5; ++i) {
-        recv(socket, current_byte, 0, 0);
+        recv(socket, current_byte, 1, 0);
         result += (*(current_byte) & SEGMENT_BITS) << (8*i);
         if (((*(current_byte)) & CONTINUE_BIT) != (CONTINUE_BIT)) {
             break;

@@ -53,7 +53,7 @@ int main() {
     char ping = 0x01;
     char* test = calloc(8, sizeof(char));
     NetworkBuffer* buffer = get_ptr_buffer(header);
-    buffer_send(buffer, sockD);
+    buffer_send_packet(buffer, sockD);
     buffer_free(buffer);
 
     send(sockD, &emptySize, 1, 0);
@@ -65,9 +65,9 @@ int main() {
     int packet_length = varint_receive(sockD);
     printf("Packet length: %d\n", packet_length);
     int packet_id = varint_receive(sockD);
-    char string[32000] = {0};
-    buffer_read_string(answer, string);
-    printf("String: %s", string);
+    printf("Packet id: %d\n", packet_id);
+    buffer_read_string(answer, sockD);
+    buffer_print_string(answer);
     buffer_free(answer);
 
     close(connection_status);

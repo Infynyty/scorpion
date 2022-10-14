@@ -58,9 +58,14 @@ void buffer_write_little_endian(NetworkBuffer* buffer, void* bytes, const size_t
     buffer_write_bytes(buffer, bytes, length_in_bytes);
 }
 
-int buffer_send(const NetworkBuffer* buffer, const SOCKET socket) {
-    char size = (char) buffer->byte_size;
-    send(socket, &size, 1, 0);
+int buffer_send_packet(const NetworkBuffer* buffer, const SOCKET socket) {
+    // prefix packet with packet size as varint
+    NetworkBuffer* packetSizeBytes = buffer_new();
+    MCVarInt* packetSize = writeVarInt(buffer->byte_size);
+    buffer_write_little_endian(packetSizeBytes, packetSize->bytes, packetSize->length);
+    send(socket, (const char *) packetSize->bytes, packetSize->length, 0);
+    buffer_free(packetSizeBytes);
+
     return send(socket, buffer->bytes, (int) buffer->byte_size, 0);
 }
 
@@ -69,16 +74,13 @@ void buffer_read(NetworkBuffer* buffer, char* bytes, size_t length) {
     buffer->current_byte += length;
 }
 
-int buffer_read_varint(NetworkBuffer* buffer) {
-    int size = 0;
-    int varint = varint_read(buffer->current_byte, &size);
-    buffer->current_byte += size;
-    return varint;
+void buffer_read_string(NetworkBuffer* buffer, SOCKET socket) {
+    int string_length = varint_receive(socket);
+    buffer_receive(buffer, socket, string_length);
 }
 
-void buffer_read_string(NetworkBuffer* buffer, char* string_destination) {
-    int string_length = buffer_read_varint(buffer);
-    memcpy(string_destination, buffer->current_byte, string_length);
+void buffer_print_string(NetworkBuffer* buffer) {
+    printf("%s", buffer->bytes);
 }
 
 void buffer_receive(NetworkBuffer* buffer, SOCKET socket, size_t length) {
