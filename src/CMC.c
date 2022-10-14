@@ -12,6 +12,7 @@
 #include "Packets/Serverbound/Status/PingRequestPacket.h"
 #include "Util/ConnectionState/ConnectionState.h"
 #include "Packets/Clientbound/PacketHandler.h"
+#include "Packets/Serverbound/Login/LoginStartPacket.h"
 
 #endif
 
@@ -55,31 +56,35 @@ int main() {
             address,
             strlen(address),
             25565,
-            HANDSHAKE_NEXT_STATE_STATUS
+            HANDSHAKE_NEXT_STATE_LOGIN
             );
     handshake_packet_send(handshakePacket, sockD);
     handshake_packet_free(handshakePacket);
 
-    StatusPacket* statusPacket = status_packet_new();
-    status_packet_send(statusPacket, sockD);
-    status_packet_free(statusPacket);
+//    StatusPacket* statusPacket = status_packet_new();
+//    status_packet_send(statusPacket, sockD);
+//    status_packet_free(statusPacket);
+//
+//
+//
+//    NetworkBuffer* answer = buffer_new();
+//    int packet_length = varint_receive(sockD);
+//    printf("Packet length: %d\n", packet_length);
+//    int packet_id = varint_receive(sockD);
+//    printf("Packet id: %d\n", packet_id);
+//    buffer_read_string(answer, sockD);
+//    buffer_print_string(answer);
+//    buffer_free(answer);
+//
+//    PingRequestPacket *pingRequestPacket = ping_request_packet_new();
+//    ping_request_packet_send(pingRequestPacket, sockD);
+//    ping_request_packet_free(pingRequestPacket);
 
+//    handle_incoming_packet(sockD, STATUS);
 
-
-    NetworkBuffer* answer = buffer_new();
-    int packet_length = varint_receive(sockD);
-    printf("Packet length: %d\n", packet_length);
-    int packet_id = varint_receive(sockD);
-    printf("Packet id: %d\n", packet_id);
-    buffer_read_string(answer, sockD);
-    buffer_print_string(answer);
-    buffer_free(answer);
-
-    PingRequestPacket *pingRequestPacket = ping_request_packet_new();
-    ping_request_packet_send(pingRequestPacket, sockD);
-    ping_request_packet_free(pingRequestPacket);
-
-    handle_incoming_packet(sockD, STATUS);
+    LoginStartPacket *loginStartPacket = login_start_packet_new();
+    login_start_packet_send(loginStartPacket, sockD);
+    login_start_packet_free(loginStartPacket);
 
     close(connection_status);
 
