@@ -9,6 +9,9 @@
 #include <math.h>
 #include <stdbool.h>
 
+#define BYTE_LENGTH_IN_BIT 8
+#define MAX_VARINT_LENGTH_IN_BYTES 5
+
 struct MCVarInt;
 
 void write_int_to_bit_array(int givenInt, bool *array) {
@@ -21,19 +24,21 @@ void write_int_to_bit_array(int givenInt, bool *array) {
 
 void int_bitarray_to_varint_bitarray(bool *array, int *size) {
 
-    for (int i = 0; i < 5; ++i) {
-        bool is_next_byte_used = false;
-        for (int j = 0; j < 8; ++j) {
-            if (array[((i+1)*8)+j]) {
-                is_next_byte_used = true;
-                break;
+    for (int current_byte = 0; current_byte < MAX_VARINT_LENGTH_IN_BYTES; ++current_byte) {
+        bool are_next_bytes_used = false;
+        if (current_byte < MAX_VARINT_LENGTH_IN_BYTES - 1) {
+            for (int j = (current_byte + 1) * BYTE_LENGTH_IN_BIT; j < MAX_VARINT_LENGTH_IN_BYTES * BYTE_LENGTH_IN_BIT; ++j) {
+                if (array[j]) {
+                    are_next_bytes_used = true;
+                    break;
+                }
             }
         }
-        if (is_next_byte_used) {
-            for (int j = 39; j > (i+1)*8-1; --j) {
+        if (are_next_bytes_used) {
+            for (int j = MAX_VARINT_LENGTH_IN_BYTES * BYTE_LENGTH_IN_BIT - 1; j > (current_byte + 1) * BYTE_LENGTH_IN_BIT - 1; --j) {
                 array[j] = array[j-1];
             }
-            array[(i*8)+7] = true;
+            array[(current_byte * 8) + 7] = true;
             (*size)++;
         } else {
             break;
@@ -67,21 +72,6 @@ MCVarInt* writeVarInt(unsigned int givenInt) {
     //TODO: fix
     memcpy(varInt->bytes, byteArray, 5);
     return varInt;
-}
-
-int varint_read(const char* bytes, int* byte_size) {
-    *byte_size = 0;
-    int result = 0;
-    const int CONTINUE_BIT = 0b10000000;
-    const int SEGMENT_BITS = 0b01111111;
-    for (int i = 0; i < 5; ++i) {
-        result += (*(bytes+i) & SEGMENT_BITS) << (8*i);
-        (*byte_size)++;
-        if (((*(bytes+i)) & CONTINUE_BIT) != (CONTINUE_BIT)) {
-            break;
-        }
-    }
-    return result;
 }
 
 int varint_receive(SOCKET socket) {

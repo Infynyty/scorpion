@@ -20,7 +20,6 @@ MCVarInt* writeVarInt(unsigned int givenInt);
 uint8_t* get_bytes(MCVarInt* varInt);
 
 unsigned char get_length(MCVarInt* varInt);
-int varint_read(const char* bytes, int* byte_size);
 int varint_receive(SOCKET socket);
 
 #endif //CMC_MCVARINT_H
