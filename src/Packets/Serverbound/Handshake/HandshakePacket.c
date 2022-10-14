@@ -7,7 +7,7 @@
 #include "../../../Util/VarInt/MCVarInt.h"
 
 
-const int MC_PROTOCOL_VERSION = 128;
+const int MC_PROTOCOL_VERSION = 760;
 const int NEXT_STATE_STATUS = 1;
 const int NEXT_STATE_LOGIN = 2;
 
@@ -46,13 +46,13 @@ int get_header_size(HandshakePacket* header) {
     return size;
 }
 
-Buffer* get_ptr_buffer(HandshakePacket* header) {
-    Buffer* buffer = buffer_new();
+NetworkBuffer* get_ptr_buffer(HandshakePacket* header) {
+    NetworkBuffer* buffer = buffer_new();
     buffer_write(buffer, &header->packet_id, sizeof(header->packet_id));
-    buffer_write(buffer, get_bytes(header->protocol_version), get_length(header->protocol_version));
-    buffer_write(buffer, get_bytes(header->address_length), get_length(header->address_length));
+    buffer_write_little_endian(buffer, get_bytes(header->protocol_version), get_length(header->protocol_version));
+    buffer_write_little_endian(buffer, get_bytes(header->address_length), get_length(header->address_length));
     buffer_write(buffer, header->ip_address, 9);
     buffer_write(buffer, &header->port, sizeof(header->port));
-    buffer_write(buffer, get_bytes(header->next_state), get_length(header->next_state));
+    buffer_write_little_endian(buffer, get_bytes(header->next_state), get_length(header->next_state));
     return buffer;
 }

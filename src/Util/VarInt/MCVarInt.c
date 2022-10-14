@@ -23,16 +23,17 @@ void int_bitarray_to_varint_bitarray(bool *array, int *size) {
 
     for (int i = 0; i < 5; ++i) {
         bool is_next_byte_used = false;
-        for (int j = 0; j < 7; ++j) {
-            if (array[(i+1)*(j)]) {
+        for (int j = 0; j < 8; ++j) {
+            if (array[((i+1)*8)+j]) {
                 is_next_byte_used = true;
+                break;
             }
         }
         if (is_next_byte_used) {
             for (int j = 39; j > (i+1)*8-1; --j) {
                 array[j] = array[j-1];
             }
-            array[(i+1)*8-1] = true;
+            array[(i*8)+7] = true;
             (*size)++;
         } else {
             break;
@@ -80,6 +81,22 @@ int varint_read(const char* bytes, int* byte_size) {
             break;
         }
     }
+    return result;
+}
+
+int varint_receive(SOCKET socket) {
+    char* current_byte = malloc(sizeof(char));
+    int result = 0;
+    const int CONTINUE_BIT = 0b10000000;
+    const int SEGMENT_BITS = 0b01111111;
+    for (int i = 0; i < 5; ++i) {
+        recv(socket, current_byte, 0, 0);
+        result += (*(current_byte) & SEGMENT_BITS) << (8*i);
+        if (((*(current_byte)) & CONTINUE_BIT) != (CONTINUE_BIT)) {
+            break;
+        }
+    }
+    free(current_byte);
     return result;
 }
 

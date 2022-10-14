@@ -48,21 +48,25 @@ int main() {
     }
     printf("Connected succesfully!\n");
 
+    char emptySize = 1;
     char emptyPacket = 0x00;
     char ping = 0x01;
     char* test = calloc(8, sizeof(char));
-    Buffer* buffer = get_ptr_buffer(header);
+    NetworkBuffer* buffer = get_ptr_buffer(header);
     buffer_send(buffer, sockD);
     buffer_free(buffer);
 
+    send(sockD, &emptySize, 1, 0);
     send(sockD, &emptyPacket, 1, 0);
     send(sockD, &ping, 1, 0);
     send(sockD, test, sizeof(long), 0);
 
-    Buffer* answer = buffer_new();
-    buffer_receive(answer, sockD, 32000);
+    NetworkBuffer* answer = buffer_new();
+    int packet_length = varint_receive(sockD);
+    printf("Packet length: %d\n", packet_length);
+    int packet_id = varint_receive(sockD);
     char string[32000] = {0};
-    buffer_read_string(buffer, string);
+    buffer_read_string(answer, string);
     printf("String: %s", string);
     buffer_free(answer);
 
