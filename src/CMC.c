@@ -8,6 +8,10 @@
 #ifdef _WIN32
     #include <winsock2.h>
 #include "Packets/Serverbound/Handshake/HandshakePacket.h"
+#include "Packets/Serverbound/Status/StatusPacket.h"
+#include "Packets/Serverbound/Status/PingRequestPacket.h"
+#include "Util/ConnectionState/ConnectionState.h"
+#include "Packets/Clientbound/PacketHandler.h"
 
 #endif
 
@@ -30,8 +34,6 @@ int main() {
 #ifdef __APPLE__
     int sockD = socket( PF_LOCAL, SOCK_STREAM, 0);
 #endif
-    char address[] = "localhost";
-    HandshakePacket* header = header_new(address, strlen(address), 25565);
 
     struct sockaddr_in server_address;
 //    uint32_t ip_address = 2130706433; // 127.0.0.1 as an integer
@@ -48,18 +50,21 @@ int main() {
     }
     printf("Connected succesfully!\n");
 
-    char emptySize = 1;
-    char emptyPacket = 0x00;
-    char ping = 0x01;
-    char* test = calloc(8, sizeof(char));
-    NetworkBuffer* buffer = get_ptr_buffer(header);
-    buffer_send_packet(buffer, sockD);
-    buffer_free(buffer);
+    char address[] = "localhost";
+    HandshakePacket* handshakePacket = handshake_packet_new(
+            address,
+            strlen(address),
+            25565,
+            HANDSHAKE_NEXT_STATE_STATUS
+            );
+    handshake_packet_send(handshakePacket, sockD);
+    handshake_packet_free(handshakePacket);
 
-    send(sockD, &emptySize, 1, 0);
-    send(sockD, &emptyPacket, 1, 0);
-    send(sockD, &ping, 1, 0);
-    send(sockD, test, sizeof(long), 0);
+    StatusPacket* statusPacket = status_packet_new();
+    status_packet_send(statusPacket, sockD);
+    status_packet_free(statusPacket);
+
+
 
     NetworkBuffer* answer = buffer_new();
     int packet_length = varint_receive(sockD);
@@ -69,6 +74,12 @@ int main() {
     buffer_read_string(answer, sockD);
     buffer_print_string(answer);
     buffer_free(answer);
+
+    PingRequestPacket *pingRequestPacket = ping_request_packet_new();
+    ping_request_packet_send(pingRequestPacket, sockD);
+    ping_request_packet_free(pingRequestPacket);
+
+    handle_incoming_packet(sockD, STATUS);
 
     close(connection_status);
 
