@@ -13,6 +13,7 @@
 #include "Util/ConnectionState/ConnectionState.h"
 #include "Packets/Clientbound/PacketHandler.h"
 #include "Packets/Serverbound/Login/LoginStartPacket.h"
+#include "Util/Logging/Logger.h"
 
 #endif
 
@@ -22,7 +23,7 @@
 
 
 int main() {
-
+    cmc_log(INFO, "Connected succesfully!\n");
 
 #ifdef _WIN32
     WSADATA wsaData;
@@ -49,7 +50,7 @@ int main() {
         printf("Fehler!");
         return -1;
     }
-    printf("Connected succesfully!\n");
+    cmc_log(INFO, "Connected succesfully!\n");
 
     char address[] = "localhost";
     HandshakePacket* handshakePacket = handshake_packet_new(
@@ -85,6 +86,11 @@ int main() {
     LoginStartPacket *loginStartPacket = login_start_packet_new();
     login_start_packet_send(loginStartPacket, sockD);
     login_start_packet_free(loginStartPacket);
+
+    while(1) {
+        handle_incoming_packet(sockD, PLAY);
+        Sleep(10);
+    }
 
     close(connection_status);
 

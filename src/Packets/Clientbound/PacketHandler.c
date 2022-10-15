@@ -8,6 +8,7 @@
 
 #include "Status/PingResponsePacket.h"
 #include "../../Util/NetworkBuffer.h"
+#include "../../Util/Logging/Logger.h"
 
 
 // Connection status: STATUS
@@ -21,11 +22,17 @@
 #define DISCONNECT_PLAY     0x19
 #define LOGIN_PLAY          0x25
 
+void consume_packet(SOCKET socket, int length_in_bytes);
 
 void handle_incoming_packet(SOCKET socket, enum ConnectionState connectionState) {
     int packet_length = varint_receive(socket);
     int packet_id = varint_receive(socket);
 
+    if(packet_id > 1000) {
+        return;
+    }
+
+    printf("Packet received with ID: %d\n", packet_id);
     switch (connectionState) {
         case HANDSHAKE:
             break;
@@ -39,8 +46,8 @@ void handle_incoming_packet(SOCKET socket, enum ConnectionState connectionState)
                     ping_response_packet_handle(socket);
                     break;
                 default:
-                    fprintf(stderr, "Invalid packet id (packet id: %d)!", packet_id);
-                    exit(EXIT_FAILURE);
+                    consume_packet(socket, packet_length - 1);
+                    cmc_log(DEBUG, "Consumed packet with id %x", packet_id);
             }
             break;
 
@@ -65,8 +72,14 @@ void handle_incoming_packet(SOCKET socket, enum ConnectionState connectionState)
 
 
         default:
-            fprintf(stderr, "Invalid connection state (state: %d)!", connectionState);
+            cmc_log(ERR, "Invalid connection state (state: %d)!", connectionState);
             exit(EXIT_FAILURE);
     }
+}
+
+void consume_packet(SOCKET socket, int length_in_bytes) {
+    char* ptr = malloc(length_in_bytes);
+    recv(socket, ptr, length_in_bytes, 0);
+    free(ptr);
 }
 
