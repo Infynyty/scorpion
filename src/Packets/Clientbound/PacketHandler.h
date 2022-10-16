@@ -8,6 +8,6 @@
 #include <winsock2.h>
 #include "../../Util/ConnectionState/ConnectionState.h"
 
-void handle_incoming_packet(SOCKET socket, enum ConnectionState connectionState);
+void handle_incoming_packet(SOCKET socket);
 
 #endif //CMC_PACKETHANDLER_H

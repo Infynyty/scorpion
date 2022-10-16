@@ -69,18 +69,26 @@ int buffer_send_packet(const NetworkBuffer* buffer, const SOCKET socket) {
     return send(socket, buffer->bytes, (int) buffer->byte_size, 0);
 }
 
-void buffer_read(NetworkBuffer* buffer, char* bytes, size_t length) {
-    memcpy(bytes, buffer->current_byte, length);
-    buffer->current_byte += length;
-}
-
 void buffer_read_string(NetworkBuffer* buffer, SOCKET socket) {
     int string_length = varint_receive(socket);
     buffer_receive(buffer, socket, string_length);
+    char string_terminator = '\0';
+    buffer_write_bytes(buffer, &string_terminator, 1);
 }
 
 void buffer_print_string(NetworkBuffer* buffer) {
     printf("%s", buffer->bytes);
+}
+
+uint64_t buffer_receive_uint64(SOCKET socket) {
+    NetworkBuffer *buffer = buffer_new();
+    buffer_receive(buffer, socket, sizeof(uint64_t));
+    uint64_t result = 0;
+    for (int i = sizeof(uint64_t) - 1; i >= 0; --i) {
+        result += (*buffer->bytes) << 8 * i;
+    }
+    buffer_free(buffer);
+    return result;
 }
 
 void buffer_receive(NetworkBuffer* buffer, SOCKET socket, size_t length) {

@@ -84,5 +84,7 @@ void buffer_print_string(NetworkBuffer* buffer);
  */
 void buffer_receive(NetworkBuffer *buffer, SOCKET socket, size_t length);
 
+uint64_t buffer_receive_uint64(SOCKET socket);
+
 
 #endif //CMC_NETWORKBUFFER_H

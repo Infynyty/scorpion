@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "MCVarInt.h"
+#include "../Logging/Logger.h"
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>

@@ -9,8 +9,13 @@
 #include <malloc.h>
 #include "Logger.h"
 
+const enum CMC_LOG_LEVEL ACTIVE_LOG_LEVEL = DEBUG;
+
 // TODO: Reimplement colors
 void cmc_log(enum CMC_LOG_LEVEL level, const char* message, ...) {
+    if (level < ACTIVE_LOG_LEVEL) {
+        return;
+    }
     va_list args;
 
     va_start(args, message);
@@ -27,6 +32,7 @@ void cmc_log(enum CMC_LOG_LEVEL level, const char* message, ...) {
 
     vprintf(message, args);
     va_end(args);
+    printf("\n");
 
 //    printf("\x1b[0m");
 }
