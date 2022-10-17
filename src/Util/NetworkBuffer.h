@@ -55,8 +55,8 @@ void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, size_t lengt
 /**
  * Send the bytes of a buffer which should be a complete packet to the server.
  * @param buffer The buffer from which the bytes should be taken.
- * @param socket The socket to send the packet from.
- * @return Returns the result of the send() function, i.e. the number of bytes sent, if the call was successful or an
+ * @param socket The socket to send_wrapper the packet from.
+ * @return Returns the result of the send_wrapper() function, i.e. the number of bytes sent, if the call was successful or an
  * error code.
  *
  * @warning The packet will sent alongside a header containing the buffer size as a VarInt.

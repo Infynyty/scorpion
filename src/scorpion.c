@@ -3,10 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdint.h>
-
-
-#ifdef _WIN32
-    #include <winsock2.h>
 #include "Packets/Serverbound/Handshake/HandshakePacket.h"
 #include "Packets/Serverbound/Status/StatusPacket.h"
 #include "Packets/Serverbound/Status/PingRequestPacket.h"
@@ -14,6 +10,11 @@
 #include "Packets/Clientbound/PacketHandler.h"
 #include "Packets/Serverbound/Login/LoginStartPacket.h"
 #include "Util/Logging/Logger.h"
+#include "SocketWrapper.h"
+
+
+#ifdef _WIN32
+    #include <winsock2.h>
 
 #endif
 
@@ -24,31 +25,7 @@
 
 int main() {
 
-#ifdef _WIN32
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(1,1), &wsaData) != 0) {
-        fprintf(stderr, "WSAStartup failed.\n");
-        exit(1);
-    }
-    SOCKET sockD = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
-#endif
-#ifdef __APPLE__
-    int sockD = socket( PF_LOCAL, SOCK_STREAM, 0);
-#endif
-
-    struct sockaddr_in server_address;
-//    uint32_t ip_address = 2130706433; // 127.0.0.1 as an integer
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server_address.sin_port = htons(25565);
-    server_address.sin_family = AF_INET;
-
-    printf("Trying to connect to port %d.\n", server_address.sin_port);
-    int connection_status = connect(sockD, (const struct sockaddr *) &server_address, sizeof server_address);
-
-    if (connection_status == -1) {
-        printf("Fehler!");
-        return -1;
-    }
+    SocketWrapper* socket = connect_wrapper();
     cmc_log(INFO, "Connected succesfully!\n");
 
     char address[] = "localhost";
@@ -58,7 +35,7 @@ int main() {
             25565,
             HANDSHAKE_NEXT_STATE_LOGIN
             );
-    handshake_packet_send(handshakePacket, sockD);
+    handshake_packet_send(handshakePacket, );
     handshake_packet_free(handshakePacket);
 
 //    StatusPacket* statusPacket = status_packet_new();
