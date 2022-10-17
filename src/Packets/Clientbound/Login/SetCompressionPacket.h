@@ -5,7 +5,8 @@
 #ifndef CMC_SETCOMPRESSIONPACKET_H
 #define CMC_SETCOMPRESSIONPACKET_H
 
-#include "SocketWrapper.h"
+
+#include "../../../Util/SocketWrapper.h"
 
 void set_compression_packet_handle(SocketWrapper *socket);
 

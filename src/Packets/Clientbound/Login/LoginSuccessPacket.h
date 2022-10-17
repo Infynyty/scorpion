@@ -6,7 +6,7 @@
 #define CMC_LOGINSUCCESSPACKET_H
 
 
-#include "SocketWrapper.h"
+#include "../../../Util/SocketWrapper.h"
 
 void login_success_packet_handle(SocketWrapper *socket);
 

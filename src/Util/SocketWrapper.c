@@ -2,11 +2,17 @@
 // Created by Kasimir Stadie on 17.10.22.
 //
 
+#ifdef __APPLE__
 #include <sys/socket.h>
-#include <errno.h>
 #include <netinet/in.h>
-#include <stdlib.h>
 #include <printf.h>
+#endif
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
+#include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "Logger.h"
 
 typedef struct SocketWrapper {
@@ -33,7 +39,7 @@ SocketWrapper* connect_wrapper() {
 #endif
     socketWrapper->socket = sock;
     struct sockaddr_in server_address;
-    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     server_address.sin_port = htons(25565);
     server_address.sin_family = AF_INET;
 

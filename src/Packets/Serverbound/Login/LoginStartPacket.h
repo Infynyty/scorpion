@@ -6,7 +6,7 @@
 #define CMC_LOGINSTARTPACKET_H
 
 
-#include "SocketWrapper.h"
+#include "../../../Util/SocketWrapper.h"
 
 typedef struct LoginStartPacket LoginStartPacket;
 

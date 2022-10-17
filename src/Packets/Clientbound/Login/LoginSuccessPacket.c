@@ -8,8 +8,8 @@
 #include "../../../Util/Logging/Logger.h"
 
 void login_success_packet_handle(SocketWrapper *socket) {
-    u_int64_t uuid_high = buffer_receive_uint64(socket);
-    u_int64_t uuid_low = buffer_receive_uint64(socket);
+    uint64_t uuid_high = buffer_receive_uint64(socket);
+    uint64_t uuid_low = buffer_receive_uint64(socket);
     NetworkBuffer *username = buffer_new();
     buffer_read_string(username, socket);
     int number_of_properties = varint_receive(socket);

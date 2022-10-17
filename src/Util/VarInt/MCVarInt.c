@@ -2,12 +2,12 @@
 // Created by Kasimir Stadie on 07.10.22.
 //
 
-#include "SocketWrapper.h"
 #include <stdlib.h>
 #include <string.h>
 #include "MCVarInt.h"
 #include "../Logging/Logger.h"
-#include "NetworkBuffer.h"
+#include "../SocketWrapper.h"
+#include "../NetworkBuffer.h"
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>

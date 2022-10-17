@@ -3,7 +3,7 @@
 //
 
 #include "DisconnectLoginPacket.h"
-#include "NetworkBuffer.h"
+#include "../../../Util/NetworkBuffer.h"
 
 
 void disconnect_login_packet_handle(SocketWrapper *socket) {

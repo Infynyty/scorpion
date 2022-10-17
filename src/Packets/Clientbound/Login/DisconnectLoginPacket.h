@@ -5,7 +5,7 @@
 #ifndef CMC_DISCONNECTLOGINPACKET_H
 #define CMC_DISCONNECTLOGINPACKET_H
 
-#include "SocketWrapper.h"
+#include "../../../Util/SocketWrapper.h"
 
 void disconnect_login_packet_handle(SocketWrapper *socket);
 

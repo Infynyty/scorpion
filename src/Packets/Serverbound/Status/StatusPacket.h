@@ -6,7 +6,7 @@
 #define CMC_STATUSPACKET_H
 
 
-#include "SocketWrapper.h"
+#include "../../../Util/SocketWrapper.h"
 
 typedef struct StatusPacket StatusPacket;
 

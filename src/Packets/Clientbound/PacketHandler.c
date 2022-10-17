@@ -36,7 +36,7 @@ void handle_incoming_packet(SocketWrapper *socket) {
     static enum ConnectionState connectionState = LOGIN;
     int packet_length_total = varint_receive(socket) - 1;
 
-    if(packet_length_total == 0) {
+    if(packet_length_total == -1) {
         return;
     }
     int packet_id = varint_receive(socket);

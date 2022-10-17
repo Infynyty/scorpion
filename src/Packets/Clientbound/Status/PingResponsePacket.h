@@ -5,7 +5,8 @@
 #ifndef CMC_PINGRESPONSEPACKET_H
 #define CMC_PINGRESPONSEPACKET_H
 
-#include "SocketWrapper.h"
+
+#include "../../../Util/SocketWrapper.h"
 
 typedef struct PingResponePacket PingResponsePacket;
 

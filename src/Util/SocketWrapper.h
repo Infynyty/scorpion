@@ -6,6 +6,9 @@
 #define CMC_SOCKETWRAPPER_H
 
 #include <stddef.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 
 typedef struct SocketWrapper {
 #ifdef _WIN32
