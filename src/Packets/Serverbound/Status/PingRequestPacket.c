@@ -3,6 +3,7 @@
 //
 
 #include "PingRequestPacket.h"
+#include <stdlib.h>
 
 struct PingRequestPacket {
     MCVarInt *packetID;
@@ -25,7 +26,7 @@ NetworkBuffer* ping_request_packet_write_to_buffer(PingRequestPacket* packet) {
     buffer_write(buffer, packet->payload, sizeof(uint64_t));
 }
 
-int ping_request_packet_send(PingRequestPacket* packet, SOCKET socket) {
+int ping_request_packet_send(PingRequestPacket* packet, SocketWrapper *socket) {
     NetworkBuffer *buffer = ping_request_packet_write_to_buffer(packet);
     buffer_send_packet(buffer, socket);
 }

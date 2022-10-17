@@ -2,10 +2,12 @@
 // Created by Kasimir Stadie on 07.10.22.
 //
 
+#include "SocketWrapper.h"
 #include <stdlib.h>
 #include <string.h>
 #include "MCVarInt.h"
 #include "../Logging/Logger.h"
+#include "NetworkBuffer.h"
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>
@@ -75,19 +77,18 @@ MCVarInt* writeVarInt(unsigned int givenInt) {
     return varInt;
 }
 
-int varint_receive(SOCKET socket) {
-    char* current_byte = malloc(sizeof(char));
+int varint_receive(SocketWrapper *socket) {
+    char current_byte = 0;
     int result = 0;
     const int CONTINUE_BIT = 0b10000000;
     const int SEGMENT_BITS = 0b01111111;
     for (int i = 0; i < 5; ++i) {
-        recv(socket, current_byte, 1, 0);
-        result += (*(current_byte) & SEGMENT_BITS) << (8*i);
-        if (((*(current_byte)) & CONTINUE_BIT) != (CONTINUE_BIT)) {
+        current_byte = buffer_receive_uint8_t(socket);
+        result += (current_byte & SEGMENT_BITS) << (8*i);
+        if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
             break;
         }
     }
-    free(current_byte);
     return result;
 }
 

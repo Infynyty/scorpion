@@ -5,10 +5,10 @@
 #ifndef CMC_PINGRESPONSEPACKET_H
 #define CMC_PINGRESPONSEPACKET_H
 
-#include <winsock2.h>
+#include "SocketWrapper.h"
 
 typedef struct PingResponePacket PingResponsePacket;
 
-void ping_response_packet_handle(SOCKET socket);
+void ping_response_packet_handle(SocketWrapper *socket);
 
 #endif //CMC_PINGRESPONSEPACKET_H

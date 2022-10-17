@@ -2,6 +2,7 @@
 // Created by Kasimir on 14.10.2022.
 //
 
+#include <stdlib.h>
 #include "StatusPacket.h"
 #include "../../../Util/VarInt/MCVarInt.h"
 #include "../../../Util/NetworkBuffer.h"
@@ -22,7 +23,7 @@ NetworkBuffer* status_packet_write_to_buffer(StatusPacket* packet) {
     buffer_write_little_endian(buffer, packet->packetID->bytes, packet->packetID->length);
 }
 
-int status_packet_send(StatusPacket* packet, SOCKET socket) {
+void status_packet_send(StatusPacket* packet, SocketWrapper *socket) {
     NetworkBuffer* buffer = status_packet_write_to_buffer(packet);
     return buffer_send_packet(buffer, socket);
 }

@@ -6,7 +6,6 @@
 #include <time.h>
 #include <string.h>
 #include <stdarg.h>
-#include <malloc.h>
 #include "Logger.h"
 
 const enum CMC_LOG_LEVEL ACTIVE_LOG_LEVEL = DEBUG;

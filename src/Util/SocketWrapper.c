@@ -3,19 +3,20 @@
 //
 
 #include <sys/socket.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include "SocketWrapper.h"
-#include "NetworkBuffer.h"
+#include <printf.h>
+#include "Logger.h"
 
-struct SocketWrapper {
+typedef struct SocketWrapper {
 #ifdef _WIN32
     SOCKET socket;
 #endif
 #ifdef __APPLE__
     int socket;
 #endif
-};
+} SocketWrapper;
 
 SocketWrapper* connect_wrapper() {
     SocketWrapper *socketWrapper = malloc(sizeof(SocketWrapper));
@@ -28,28 +29,39 @@ SocketWrapper* connect_wrapper() {
     SOCKET sock = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #endif
 #ifdef __APPLE__
-    int sock = socket( PF_LOCAL, SOCK_STREAM, 0);
+    int sock = socket( AF_INET, SOCK_STREAM, 0);
 #endif
     socketWrapper->socket = sock;
     struct sockaddr_in server_address;
-    uint32_t server_ip = 2130706433; // 127.0.0.1 as an integer
-    server_address.sin_addr.s_addr = server_ip;
+    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
     server_address.sin_port = htons(25565);
     server_address.sin_family = AF_INET;
 
-    printf("Trying to connect_wrapper to port %d.\n", server_address.sin_port);
+    cmc_log(DEBUG, "Trying to connect to port %d at ip %d", server_address.sin_port, INADDR_ANY);
     int connection_status = connect(sock, (const struct sockaddr *) &server_address, sizeof server_address);
 
     if (connection_status == -1) {
-        printf("Fehler!");
+        cmc_log(ERR, "Connection to server could not be established.");
+        cmc_log(ERR, "Error code: %d", errno);
+        exit(EXIT_FAILURE);
     }
     return socketWrapper;
 }
 
-void send_wrapper(SocketWrapper* socket) {
-
+void send_wrapper(SocketWrapper* socket, void* bytes, size_t length) {
+#ifdef _WIN32
+    send(socket->socket, bytes, length, 0);
+#endif
+#ifdef __APPLE__
+    send(socket->socket, bytes, length, 0);
+#endif
 }
 
-void receive_wrapper(SocketWrapper *socket, NetworkBuffer *buffer, size_t size) {
-
+void receive_wrapper(SocketWrapper *socket, void* bytes, size_t size) {
+#ifdef _WIN32
+    recv(socket->socket, bytes, size, 0);
+#endif
+#ifdef __APPLE__
+    recv(socket->socket, bytes, size, 0);
+#endif
 }

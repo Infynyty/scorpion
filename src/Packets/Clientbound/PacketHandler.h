@@ -5,9 +5,10 @@
 #ifndef CMC_PACKETHANDLER_H
 #define CMC_PACKETHANDLER_H
 
-#include <winsock2.h>
-#include "../../Util/ConnectionState/ConnectionState.h"
 
-void handle_incoming_packet(SOCKET socket);
+#include "../../Util/ConnectionState/ConnectionState.h"
+#include "SocketWrapper.h"
+
+void handle_incoming_packet(SocketWrapper *socket);
 
 #endif //CMC_PACKETHANDLER_H

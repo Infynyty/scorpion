@@ -5,8 +5,8 @@
 #ifndef CMC_NETWORKBUFFER_H
 #define CMC_NETWORKBUFFER_H
 
+#include "SocketWrapper.h"
 #include <string.h>
-#include <winsock2.h>
 #include <errno.h>
 #include <stdio.h>
 #include "VarInt/MCVarInt.h"
@@ -56,19 +56,17 @@ void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, size_t lengt
  * Send the bytes of a buffer which should be a complete packet to the server.
  * @param buffer The buffer from which the bytes should be taken.
  * @param socket The socket to send_wrapper the packet from.
- * @return Returns the result of the send_wrapper() function, i.e. the number of bytes sent, if the call was successful or an
- * error code.
  *
  * @warning The packet will sent alongside a header containing the buffer size as a VarInt.
  */
-int buffer_send_packet(const NetworkBuffer *buffer, SOCKET socket);
+void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket);
 
 /**
  * Reads a string from the incoming byte stream and writes its content to a buffer.
  * @param buffer    The buffer that the string will be written to.
  * @param socket    The socket from which the input will be taken.
  */
-void buffer_read_string(NetworkBuffer *buffer, SOCKET socket);
+void buffer_read_string(NetworkBuffer *buffer, SocketWrapper *socket);
 
 /**
  * Attempts to print a buffer as a string.
@@ -82,9 +80,12 @@ void buffer_print_string(NetworkBuffer* buffer);
  * @param socket The socket from which the input will be taken.
  * @param length The amount of bytes that will be read from the input stream.
  */
-void buffer_receive(NetworkBuffer *buffer, SOCKET socket, size_t length);
+void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length);
 
-uint64_t buffer_receive_uint64(SOCKET socket);
+uint8_t buffer_receive_uint8_t(SocketWrapper *socket);
+
+
+uint64_t buffer_receive_uint64(SocketWrapper *socket);
 
 
 #endif //CMC_NETWORKBUFFER_H

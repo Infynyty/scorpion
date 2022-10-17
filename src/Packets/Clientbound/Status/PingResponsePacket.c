@@ -6,7 +6,7 @@
 #include "PingResponsePacket.h"
 #include "../../../Util/NetworkBuffer.h"
 
-void ping_response_packet_handle(SOCKET socket) {
+void ping_response_packet_handle(SocketWrapper *socket) {
     NetworkBuffer* buffer = buffer_new();
     buffer_receive(buffer, socket, sizeof(uint64_t));
 

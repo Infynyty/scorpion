@@ -6,7 +6,7 @@
 #define CMC_MCVARINT_H
 
 #include <stdint.h>
-#include <winsock2.h>
+#include "SocketWrapper.h"
 
 typedef struct MCVarInt {
     char length;
@@ -20,6 +20,6 @@ MCVarInt* writeVarInt(unsigned int givenInt);
 uint8_t* get_bytes(MCVarInt* varInt);
 
 unsigned char get_length(MCVarInt* varInt);
-int varint_receive(SOCKET socket);
+int varint_receive(SocketWrapper *socket);
 
 #endif //CMC_MCVARINT_H

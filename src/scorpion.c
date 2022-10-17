@@ -25,7 +25,7 @@
 
 int main() {
 
-    SocketWrapper* socket = connect_wrapper();
+    SocketWrapper* socket_wrapper = connect_wrapper();
     cmc_log(INFO, "Connected succesfully!\n");
 
     char address[] = "localhost";
@@ -35,7 +35,7 @@ int main() {
             25565,
             HANDSHAKE_NEXT_STATE_LOGIN
             );
-    handshake_packet_send(handshakePacket, );
+    handshake_packet_send(handshakePacket, socket_wrapper);
     handshake_packet_free(handshakePacket);
 
 //    StatusPacket* statusPacket = status_packet_new();
@@ -60,15 +60,15 @@ int main() {
 //    handle_incoming_packet(sockD, STATUS);
 
     LoginStartPacket *loginStartPacket = login_start_packet_new();
-    login_start_packet_send(loginStartPacket, sockD);
+    login_start_packet_send(loginStartPacket, socket_wrapper);
     login_start_packet_free(loginStartPacket);
 
     while (1) {
-        handle_incoming_packet(sockD);
+        handle_incoming_packet(socket_wrapper);
     }
 
 
-    close(connection_status);
+    close(socket_wrapper->socket);
 
     return 0;
 }

@@ -5,6 +5,7 @@
 #include "PacketHandler.h"
 #include "../../Util/VarInt/MCVarInt.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "Status/PingResponsePacket.h"
 #include "../../Util/NetworkBuffer.h"
@@ -29,9 +30,9 @@
 #define DISCONNECT_PLAY     0x19
 #define LOGIN_PLAY          0x25
 
-void consume_packet(SOCKET socket, int length_in_bytes);
+void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
-void handle_incoming_packet(SOCKET socket) {
+void handle_incoming_packet(SocketWrapper *socket) {
     static enum ConnectionState connectionState = LOGIN;
     int packet_length_total = varint_receive(socket) - 1;
 
@@ -66,8 +67,9 @@ void handle_incoming_packet(SOCKET socket) {
         case LOGIN:
             switch (packet_id) {
                 case DISCONNECT_LOGIN:
-                    login_success_packet_handle(socket);
+                    disconnect_login_packet_handle(socket);
                     //                    disconnect_login_packet_handle(socket);
+                    exit(EXIT_SUCCESS);
                     break;
                 case LOGIN_SUCCESS:
                     login_success_packet_handle(socket);
@@ -87,6 +89,8 @@ void handle_incoming_packet(SOCKET socket) {
                     NetworkBuffer *string = buffer_new();
                     buffer_read_string(string, socket);
                     buffer_print_string(string);
+                    printf("Printed");
+                    exit(EXIT_SUCCESS);
                     break;
                 case LOGIN_PLAY:
                     cmc_log(INFO, "Login play packet received.");
@@ -104,9 +108,9 @@ void handle_incoming_packet(SOCKET socket) {
     }
 }
 
-void consume_packet(SOCKET socket, int length_in_bytes) {
+void consume_packet(SocketWrapper *socket, int length_in_bytes) {
     char* ptr = malloc(length_in_bytes);
-    recv(socket, ptr, length_in_bytes, 0);
+    receive_wrapper(socket, ptr, length_in_bytes);
     free(ptr);
 }
 

@@ -5,8 +5,21 @@
 #ifndef CMC_SOCKETWRAPPER_H
 #define CMC_SOCKETWRAPPER_H
 
-typedef struct SocketWrapper SocketWrapper;
+#include <stddef.h>
+
+typedef struct SocketWrapper {
+#ifdef _WIN32
+    SOCKET socket;
+#endif
+#ifdef __APPLE__
+    int socket;
+#endif
+} SocketWrapper;
 
 SocketWrapper* connect_wrapper();
+
+void receive_wrapper(SocketWrapper *socket, void* bytes, size_t size);
+
+void send_wrapper(SocketWrapper* socket, void* bytes, size_t length);
 
 #endif //CMC_SOCKETWRAPPER_H

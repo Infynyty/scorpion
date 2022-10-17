@@ -47,7 +47,7 @@ NetworkBuffer *write_packet_to_buffer(HandshakePacket *packet) {
     return buffer;
 }
 
-int handshake_packet_send(HandshakePacket *packet, const SOCKET socket) {
+void handshake_packet_send(HandshakePacket *packet, SocketWrapper *socket) {
     return buffer_send_packet(write_packet_to_buffer(packet), socket);
 }
 

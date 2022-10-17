@@ -16,7 +16,7 @@
 typedef struct HandshakePacket HandshakePacket;
 
 HandshakePacket* handshake_packet_new(char* ip_address, unsigned char ip_length, unsigned short port, int next_state);
-int handshake_packet_send(HandshakePacket* packet, SOCKET socket);
+void handshake_packet_send(HandshakePacket* packet, SocketWrapper *socket);
 void handshake_packet_free(HandshakePacket* packet);
 
 

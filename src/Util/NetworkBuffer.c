@@ -3,7 +3,9 @@
 //
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include "NetworkBuffer.h"
+#include "SocketWrapper.h"
 
 #define MAX_BUFFER_SIZE 2097151 // maximum length for a packet
 
@@ -39,7 +41,7 @@ void buffer_write_bytes(NetworkBuffer* buffer, void* bytes, const size_t length_
         buffer->current_byte = temp;
     }
     //Write new bytes to the last location of the old array
-    memcpy(buffer->bytes + buffer->byte_size, bytes, length_in_bytes);
+    memmove(buffer->bytes + buffer->byte_size, bytes, length_in_bytes);
     //Set new size of array
     buffer->byte_size += length_in_bytes;
 }
@@ -58,18 +60,17 @@ void buffer_write_little_endian(NetworkBuffer* buffer, void* bytes, const size_t
     buffer_write_bytes(buffer, bytes, length_in_bytes);
 }
 
-int buffer_send_packet(const NetworkBuffer* buffer, const SOCKET socket) {
+void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket) {
     // prefix packet with packet size as varint
-    NetworkBuffer* packetSizeBytes = buffer_new();
-    MCVarInt* packetSize = writeVarInt(buffer->byte_size);
-    buffer_write_little_endian(packetSizeBytes, packetSize->bytes, packetSize->length);
-    send(socket, (const char *) packetSize->bytes, packetSize->length, 0);
-    buffer_free(packetSizeBytes);
-
-    return send(socket, buffer->bytes, (int) buffer->byte_size, 0);
+    NetworkBuffer* packet_size_bytes = buffer_new();
+    MCVarInt* packet_size_varint = writeVarInt(buffer->byte_size);
+    buffer_write_little_endian(packet_size_bytes, packet_size_varint->bytes, packet_size_varint->length);
+    send_wrapper(socket, packet_size_varint->bytes, packet_size_varint->length);
+    buffer_free(packet_size_bytes);
+    send_wrapper(socket, buffer->bytes, buffer->byte_size);
 }
 
-void buffer_read_string(NetworkBuffer* buffer, SOCKET socket) {
+void buffer_read_string(NetworkBuffer* buffer, SocketWrapper *socket) {
     int string_length = varint_receive(socket);
     buffer_receive(buffer, socket, string_length);
     char string_terminator = '\0';
@@ -80,7 +81,16 @@ void buffer_print_string(NetworkBuffer* buffer) {
     printf("%s", buffer->bytes);
 }
 
-uint64_t buffer_receive_uint64(SOCKET socket) {
+uint8_t buffer_receive_uint8_t(SocketWrapper *socket) {
+    NetworkBuffer *buffer = buffer_new();
+    buffer_receive(buffer, socket, sizeof(char));
+    uint8_t result = 0;
+    result += *buffer->bytes;
+    buffer_free(buffer);
+    return result;
+}
+
+uint64_t buffer_receive_uint64(SocketWrapper *socket) {
     NetworkBuffer *buffer = buffer_new();
     buffer_receive(buffer, socket, sizeof(uint64_t));
     uint64_t result = 0;
@@ -91,8 +101,8 @@ uint64_t buffer_receive_uint64(SOCKET socket) {
     return result;
 }
 
-void buffer_receive(NetworkBuffer* buffer, SOCKET socket, size_t length) {
+void buffer_receive(NetworkBuffer* buffer, SocketWrapper *socket, size_t length) {
     char bytes[length];
-    recv(socket, bytes, (int) length, 0);
+    receive_wrapper(socket, bytes, (int) length);
     buffer_write_bytes(buffer, bytes, length);
 }
