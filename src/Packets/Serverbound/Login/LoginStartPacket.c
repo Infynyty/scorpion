@@ -53,5 +53,6 @@ int login_start_packet_send(LoginStartPacket* packet, SocketWrapper *socket){
 void login_start_packet_free(LoginStartPacket* packet) {
     free(packet->packet_id);
     free(packet->name_length);
+    free(packet->player_name);
     free(packet);
 }

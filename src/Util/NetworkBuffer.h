@@ -18,7 +18,6 @@
 typedef struct NetworkBuffer {
     char *bytes;
     size_t byte_size;
-    char *current_byte;         //TODO: remove?
 } NetworkBuffer;
 
 /**

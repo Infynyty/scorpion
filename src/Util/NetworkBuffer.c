@@ -14,7 +14,6 @@ NetworkBuffer* buffer_new() {
     NetworkBuffer* buffer = malloc(sizeof(NetworkBuffer));
     buffer->bytes = calloc(0, sizeof(char));
     buffer->byte_size = 0;
-    buffer->current_byte = buffer->bytes;
     return buffer;
 }
 
@@ -38,7 +37,6 @@ void buffer_write_bytes(NetworkBuffer* buffer, void* bytes, const size_t length_
         exit(EXIT_FAILURE);
     } else {
         buffer->bytes = temp;
-        buffer->current_byte = temp;
     }
     //Write new bytes to the last location of the old array
     memmove(buffer->bytes + buffer->byte_size, bytes, length_in_bytes);

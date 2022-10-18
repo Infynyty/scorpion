@@ -14,7 +14,7 @@ typedef struct SocketWrapper {
 #ifdef _WIN32
     SOCKET socket;
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
     int socket;
 #endif
 } SocketWrapper;

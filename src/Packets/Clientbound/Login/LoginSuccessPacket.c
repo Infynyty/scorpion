@@ -36,5 +36,6 @@ void login_success_packet_handle(SocketWrapper *socket) {
 
     buffer_free(username);
     buffer_free(name);
+    buffer_free(is_signed_buffer);
     buffer_free(value);
 }

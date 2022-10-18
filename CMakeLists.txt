@@ -51,3 +51,7 @@ add_executable(scorpion
 if(WIN32)
     target_link_libraries(scorpion wsock32 ws2_32)
 endif()
+
+if(LINUX)
+    target_link_libraries(scorpion m)
+endif()

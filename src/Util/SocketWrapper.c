@@ -2,7 +2,7 @@
 // Created by Kasimir Stadie on 17.10.22.
 //
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <printf.h>
@@ -19,7 +19,7 @@ typedef struct SocketWrapper {
 #ifdef _WIN32
     SOCKET socket;
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
     int socket;
 #endif
 } SocketWrapper;
@@ -34,7 +34,7 @@ SocketWrapper* connect_wrapper() {
     }
     SOCKET sock = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
     int sock = socket( AF_INET, SOCK_STREAM, 0);
 #endif
     socketWrapper->socket = sock;
@@ -58,7 +58,7 @@ void send_wrapper(SocketWrapper* socket, void* bytes, size_t length) {
 #ifdef _WIN32
     send(socket->socket, bytes, length, 0);
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
     send(socket->socket, bytes, length, 0);
 #endif
 }
@@ -67,7 +67,7 @@ void receive_wrapper(SocketWrapper *socket, void* bytes, size_t size) {
 #ifdef _WIN32
     recv(socket->socket, bytes, size, 0);
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
     recv(socket->socket, bytes, size, 0);
 #endif
 }

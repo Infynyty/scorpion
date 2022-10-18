@@ -18,7 +18,7 @@
 
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
     #include <netinet/in.h>
 #endif
 
@@ -63,11 +63,12 @@ int main() {
     login_start_packet_send(loginStartPacket, socket_wrapper);
     login_start_packet_free(loginStartPacket);
 
-    while (1) {
-        handle_incoming_packet(socket_wrapper);
-    }
+    handle_incoming_packet(socket_wrapper);
+    handle_incoming_packet(socket_wrapper);
+    handle_incoming_packet(socket_wrapper);
+    handle_incoming_packet(socket_wrapper);
 
-
+    // TODO: write exit function that frees the socket pointer and closes the socket
     close(socket_wrapper->socket);
 
     return 0;
