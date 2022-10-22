@@ -9,7 +9,7 @@
 
 
 struct PlayState {
-    ServerState* serverState;
-    ClientState* clientState;
-    WorldState* worldState;
+	ServerState *serverState;
+	ClientState *clientState;
+	WorldState *worldState;
 };

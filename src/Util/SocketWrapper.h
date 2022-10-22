@@ -6,23 +6,24 @@
 #define CMC_SOCKETWRAPPER_H
 
 #include <stddef.h>
+
 #ifdef _WIN32
 #include <winsock2.h>
 #endif
 
 typedef struct SocketWrapper {
 #ifdef _WIN32
-    SOCKET socket;
+	SOCKET socket;
 #endif
 #if defined(__APPLE__) || defined(__linux__)
-    int socket;
+	int socket;
 #endif
 } SocketWrapper;
 
-SocketWrapper* connect_wrapper();
+SocketWrapper *connect_wrapper();
 
-void receive_wrapper(SocketWrapper *socket, void* bytes, size_t size);
+void receive_wrapper(SocketWrapper *socket, void *bytes, size_t size);
 
-void send_wrapper(SocketWrapper* socket, void* bytes, size_t length);
+void send_wrapper(SocketWrapper *socket, void *bytes, size_t length);
 
 #endif //CMC_SOCKETWRAPPER_H

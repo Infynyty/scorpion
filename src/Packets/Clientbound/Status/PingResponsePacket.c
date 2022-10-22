@@ -7,9 +7,9 @@
 #include "../../../Util/NetworkBuffer.h"
 
 void ping_response_packet_handle(SocketWrapper *socket) {
-    NetworkBuffer* buffer = buffer_new();
-    buffer_receive(buffer, socket, sizeof(uint64_t));
+	NetworkBuffer *buffer = buffer_new();
+	buffer_receive(buffer, socket, sizeof(uint64_t));
 
-    buffer_free(buffer);
-    printf("Ping response: ");
+	buffer_free(buffer);
+	printf("Ping response: ");
 }

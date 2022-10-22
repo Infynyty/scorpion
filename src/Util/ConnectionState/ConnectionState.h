@@ -6,10 +6,10 @@
 #define CMC_CONNECTIONSTATE_H
 
 typedef enum ConnectionState {
-    HANDSHAKE,
-    STATUS,
-    LOGIN,
-    PLAY
+	HANDSHAKE,
+	STATUS,
+	LOGIN,
+	PLAY
 } ConnectionState;
 
 void set_current_connection_state();

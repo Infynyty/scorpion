@@ -7,8 +7,8 @@
 
 
 void disconnect_login_packet_handle(SocketWrapper *socket) {
-    NetworkBuffer *buffer = buffer_new();
-    buffer_read_string(buffer, socket);
-    buffer_print_string(buffer);
-    buffer_free(buffer);
+	NetworkBuffer *buffer = buffer_new();
+	buffer_read_string(buffer, socket);
+	buffer_print_string(buffer);
+	buffer_free(buffer);
 }

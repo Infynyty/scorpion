@@ -7,6 +7,6 @@
 
 typedef struct Position Position;
 
-Position* position_new(double x, double y, double z, float yaw, float pitch);
+Position *position_new(double x, double y, double z, float yaw, float pitch);
 
 #endif //CMC_POSITION_H

@@ -10,8 +10,10 @@
 
 typedef struct StatusPacket StatusPacket;
 
-StatusPacket* status_packet_new();
-void status_packet_send(StatusPacket* packet, SocketWrapper* socket);
-void status_packet_free(StatusPacket* packet);
+StatusPacket *status_packet_new();
+
+void status_packet_send(StatusPacket *packet, SocketWrapper *socket);
+
+void status_packet_free(StatusPacket *packet);
 
 #endif //CMC_STATUSPACKET_H

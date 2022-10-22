@@ -16,8 +16,8 @@
  * pointer pointing to the current byte of the byte array.
  */
 typedef struct NetworkBuffer {
-    char *bytes;
-    size_t byte_size;
+	char *bytes;
+	size_t byte_size;
 } NetworkBuffer;
 
 /**
@@ -71,7 +71,7 @@ void buffer_read_string(NetworkBuffer *buffer, SocketWrapper *socket);
  * Attempts to print a buffer as a string.
  * @param buffer The contents of the buffer will be interpreted as a string.
  */
-void buffer_print_string(NetworkBuffer* buffer);
+void buffer_print_string(NetworkBuffer *buffer);
 
 /**
  * Takes bytes from an input stream and writes them to a buffer.
@@ -88,6 +88,7 @@ uint64_t buffer_receive_uint64(SocketWrapper *socket);
 
 
 float buffer_receive_float(SocketWrapper *socket);
+
 double buffer_receive_double(SocketWrapper *socket);
 
 

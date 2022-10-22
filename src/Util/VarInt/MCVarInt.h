@@ -9,17 +9,18 @@
 #include "../SocketWrapper.h"
 
 typedef struct MCVarInt {
-    char length;
-    uint8_t bytes[5];
+	char length;
+	uint8_t bytes[5];
 } __attribute__((__packed__)) MCVarInt;
 
-unsigned char* readVarInt(int varInt);
+unsigned char *readVarInt(int varInt);
 
-MCVarInt* writeVarInt(unsigned int givenInt);
+MCVarInt *writeVarInt(unsigned int givenInt);
 
-uint8_t* get_bytes(MCVarInt* varInt);
+uint8_t *get_bytes(MCVarInt *varInt);
 
-unsigned char get_length(MCVarInt* varInt);
+unsigned char get_length(MCVarInt *varInt);
+
 int varint_receive(SocketWrapper *socket);
 
 #endif //CMC_MCVARINT_H

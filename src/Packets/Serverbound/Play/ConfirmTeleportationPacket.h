@@ -10,8 +10,10 @@
 
 typedef struct ConfirmTeleportationPacket ConfirmTeleportationPacket;
 
-ConfirmTeleportationPacket* confirm_teleportation_packet_new(ClientState *client);
-void confirm_teleportation_packet_send(ConfirmTeleportationPacket* packet, SocketWrapper *socket);
-void confirm_teleportation_packet_free(ConfirmTeleportationPacket* packet);
+ConfirmTeleportationPacket *confirm_teleportation_packet_new(ClientState *client);
+
+void confirm_teleportation_packet_send(ConfirmTeleportationPacket *packet, SocketWrapper *socket);
+
+void confirm_teleportation_packet_free(ConfirmTeleportationPacket *packet);
 
 #endif //CMC_CONFIRMTELEPORTATIONPACKET_H
