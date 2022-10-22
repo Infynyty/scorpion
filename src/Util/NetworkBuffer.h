@@ -87,4 +87,8 @@ uint8_t buffer_receive_uint8_t(SocketWrapper *socket);
 uint64_t buffer_receive_uint64(SocketWrapper *socket);
 
 
+float buffer_receive_float(SocketWrapper *socket);
+double buffer_receive_double(SocketWrapper *socket);
+
+
 #endif //CMC_NETWORKBUFFER_H

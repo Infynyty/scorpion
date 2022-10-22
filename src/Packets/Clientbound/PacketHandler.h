@@ -8,7 +8,8 @@
 
 #include "../../Util/ConnectionState/ConnectionState.h"
 #include "../../Util/SocketWrapper.h"
+#include "../../State/ClientState.h"
 
-void handle_incoming_packet(SocketWrapper *socket);
+void handle_incoming_packet(SocketWrapper *socket, ClientState* clientState);
 
 #endif //CMC_PACKETHANDLER_H
