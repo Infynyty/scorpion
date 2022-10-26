@@ -18,6 +18,6 @@ void synchronize_player_position_packet_handle(SocketWrapper *socketWrapper, Cli
 	bool dismountVehicle = buffer_receive_uint8_t(socketWrapper); //TODO: implement
 
 	Position *position = position_new(x, y, z, yaw, pitch);
-	client_update_position(clientState, position);
-	client_set_teleportID(clientState, teleportID);
+	clientState->position = position;
+	clientState->teleportID = teleportID;
 }

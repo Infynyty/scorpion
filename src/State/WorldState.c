@@ -4,6 +4,10 @@
 
 #include "WorldState.h"
 
-struct WorldState {
 
+struct WorldState {
+	int dimension_count;
+	Dimension *dimension_array;
+	long hashed_seed;
 };
+

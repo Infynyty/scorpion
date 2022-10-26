@@ -5,6 +5,7 @@
 #ifndef CMC_POSITION_H
 #define CMC_POSITION_H
 
+typedef struct Dimension Dimension;
 typedef struct Position Position;
 
 Position *position_new(double x, double y, double z, float yaw, float pitch);

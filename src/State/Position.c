@@ -5,12 +5,20 @@
 #include <stdlib.h>
 #include "Position.h"
 
+typedef struct Dimension {
+	int name_length;
+	char *name;
+	int dimension_type_length;
+	char *dimension_type;
+} Dimension;
+
 typedef struct Position {
 	double x;
 	double y;
 	double z;
 	float yaw;
 	float pitch;
+	Dimension *dimension;
 } Position;
 
 Position *position_new(double x, double y, double z, float yaw, float pitch) {
