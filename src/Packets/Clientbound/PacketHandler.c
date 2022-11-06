@@ -34,6 +34,8 @@
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
+//TODO: Write event listener system
+
 void handle_incoming_packet(SocketWrapper *socket, ClientState *clientState) {
 	enum ConnectionState connectionState = LOGIN;
 	while (1) {
