@@ -5,6 +5,8 @@
 #ifndef CMC_CLIENTSTATE_H
 #define CMC_CLIENTSTATE_H
 
+#include <stdint.h>
+#include <stdbool.h>
 #include "Position.h"
 
 #define SURVIVAL    0

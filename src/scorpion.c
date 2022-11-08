@@ -14,14 +14,15 @@ int main() {
 	cmc_log(INFO, "Connected succesfully!\n");
 
 	char address[] = "localhost";
-	HandshakePacket *handshakePacket = handshake_packet_new(
-			address,
-			strlen(address),
+    NetworkBuffer *address_buf = buffer_new();
+    buffer_write(address_buf, address, strlen(address));
+	HandshakePacket *handshakePacket = handshake_pkt_new(
+			address_buf,
 			25565,
-			HANDSHAKE_NEXT_STATE_LOGIN
+			HANDSHAKE_STATUS
 	);
-	handshake_packet_send(handshakePacket, socket_wrapper);
-	handshake_packet_free(handshakePacket);
+    send_pkt_wrapper(&handshakePacket->_header);
+    packet_free(&handshakePacket->_header);
 
 	StatusPacket *status = status_packet_new();
 	send_pkt_wrapper(&(status->_header));

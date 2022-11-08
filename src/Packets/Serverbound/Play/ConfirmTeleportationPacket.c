@@ -14,18 +14,18 @@ struct ConfirmTeleportationPacket {
 	MCVarInt *teleportID;
 };
 
-ConfirmTeleportationPacket *confirm_teleportation_packet_new(ClientState *client) {
-	MCVarInt *packetID = writeVarInt(CONFIRM_TELEPORTATION_PACKET);
-	MCVarInt *teleportID = writeVarInt(client_get_teleportID(client));
-
-	ConfirmTeleportationPacket *packet = malloc(sizeof(ConfirmTeleportationPacket));
-	packet->packetID = packetID;
-	packet->teleportID = teleportID;
-
-	free(packetID);
-	free(teleportID);
-	return packet;
-}
+//ConfirmTeleportationPacket *confirm_teleportation_packet_new(ClientState *client) {
+//	MCVarInt *packetID = writeVarInt(CONFIRM_TELEPORTATION_PACKET);
+//	MCVarInt *teleportID = writeVarInt(client_get_teleportID(client));
+//
+//	ConfirmTeleportationPacket *packet = malloc(sizeof(ConfirmTeleportationPacket));
+//	packet->packetID = packetID;
+//	packet->teleportID = teleportID;
+//
+//	free(packetID);
+//	free(teleportID);
+//	return packet;
+//}
 
 void confirm_teleportation_packet_send(ConfirmTeleportationPacket *packet, SocketWrapper *socket) {
 	NetworkBuffer *buffer = buffer_new();

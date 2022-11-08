@@ -30,16 +30,19 @@ void send_pkt_wrapper(PacketHeader *packet);
 
 void packet_free(PacketHeader *packet);
 
+typedef enum HandshakeNextState {
+    HANDSHAKE_STATUS = 1, HANDSHAKE_LOGIN = 2
+} HandshakeNextState;
+
 typedef struct HandshakePacket {
 	PacketHeader _header;
 	MCVarInt *protocol_version;
-	MCVarInt *address_length;
-	char *ip_address;
+	NetworkBuffer *address;
 	unsigned short port;
 	MCVarInt *next_state;
 } HandshakePacket;
 
-HandshakePacket *handshake_pkt_new();
+HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, HandshakeNextState state);
 
 typedef struct StatusPacket {
 	PacketHeader _header;

@@ -3,6 +3,7 @@
 //
 
 #include "WorldState.h"
+#include "Position.h"
 
 
 struct WorldState {
