@@ -5,6 +5,7 @@
 #include "Packets/Serverbound/Login/LoginStartPacket.h"
 #include "Util/Logging/Logger.h"
 #include "SocketWrapper.h"
+#include "Packets/Serverbound/OutgoingPacket.h"
 
 
 int main() {
@@ -21,6 +22,10 @@ int main() {
 	);
 	handshake_packet_send(handshakePacket, socket_wrapper);
 	handshake_packet_free(handshakePacket);
+
+	StatusPacket *status = status_packet_new();
+	send_pkt_wrapper(&(status->_header));
+	packet_free(&(status->_header));
 
 	LoginStartPacket *loginStartPacket = login_start_packet_new();
 	login_start_packet_send(loginStartPacket, socket_wrapper);
