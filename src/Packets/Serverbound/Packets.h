@@ -2,8 +2,8 @@
 // Created by Kasimir on 04.11.2022.
 //
 
-#ifndef CMC_OUTGOINGPACKET_H
-#define CMC_OUTGOINGPACKET_H
+#ifndef CMC_PACKETS_H
+#define CMC_PACKETS_H
 
 
 #include <stdbool.h>
@@ -26,7 +26,7 @@ typedef struct {
 	MCVarInt *packet_id;
 } PacketHeader;
 
-void packet_send(PacketHeader *packet);
+void packet_send(PacketHeader *packet, SocketWrapper *socket);
 
 void packet_free(PacketHeader *packet);
 
@@ -64,7 +64,7 @@ typedef struct StatusResponsePacket {
 	NetworkBuffer *response;
 } StatusResponsePacket;
 
-StatusResponsePacket *status_response_packet_new();
+StatusResponsePacket *status_response_packet_new(NetworkBuffer *response);
 
 struct PingRequestPacket {
 	MCVarInt *packetID;
@@ -99,7 +99,15 @@ struct ConfirmTeleportationPacket {
 
 /** Serverbound **/
 
+/** Clientbound **/
 
-#endif //CMC_OUTGOINGPACKET_H
+typedef struct DisconnectPlayPacket {
+    PacketHeader _header;
+    NetworkBuffer *reason;
+} DisconnectPlayPacket;
+
+DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason);
+
+#endif //CMC_PACKETS_H
 
 

@@ -3,7 +3,7 @@
 //
 
 #include <stdlib.h>
-#include "OutgoingPacket.h"
+#include "Packets.h"
 #include "MCVarInt.h"
 #include "NetworkBuffer.h"
 #include "Logger.h"
@@ -32,7 +32,7 @@ uint8_t get_types_size(Types type) {
 	}
 }
 
-void packet_send(PacketHeader *packet) {
+void packet_send(PacketHeader *packet, SocketWrapper *socket) {
 	NetworkBuffer *buffer = buffer_new();
 	void *current_byte = packet + 1;
 	buffer_write_little_endian(buffer, packet->packet_id->bytes, packet->packet_id->length);
@@ -58,7 +58,7 @@ void packet_send(PacketHeader *packet) {
 				break;
 			case PKT_STRING: {
 				NetworkBuffer *string = *((NetworkBuffer **) current_byte);
-				MCVarInt *length = writeVarInt(buffer->byte_size);
+				MCVarInt *length = writeVarInt(string->byte_size);
 				buffer_write_little_endian(buffer, length->bytes, length->length);
 				buffer_write_little_endian(buffer, string->bytes, string->byte_size);
 
@@ -73,6 +73,8 @@ void packet_send(PacketHeader *packet) {
 		current_byte = (void *) current_byte;
 		current_byte += get_types_size(m_type);
 	}
+    buffer_send_packet(buffer, socket);
+    buffer_free(buffer);
 }
 
 void packet_free(PacketHeader *packet) {
@@ -99,7 +101,7 @@ void packet_free(PacketHeader *packet) {
 			}
 			case PKT_STRING: {
 				NetworkBuffer **string = (NetworkBuffer **) ptr;
-				free(*string);
+				buffer_free(*string);
 				string++;
 				ptr = string;
 				break;
@@ -165,4 +167,46 @@ StatusRequestPacket *status_request_packet_new() {
 	};
 	packet->_header = wrapper;
 	return packet;
+}
+
+StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
+    StatusResponsePacket *packet = malloc(sizeof(StatusResponsePacket));
+    uint8_t types_length = 1;
+    Types *types = malloc(1 * sizeof(Types));
+    Types typeArray[] = {
+            PKT_STRING
+    };
+    memcpy(types, typeArray, types_length * sizeof(Types));
+    MCVarInt *packet_id = writeVarInt(0x00);
+    PacketHeader wrapper = {
+            .member_types = types,
+            .members = types_length,
+            .direction = CLIENTBOUND,
+            .state = STATUS,
+            .packet_id = packet_id
+    };
+    packet->_header = wrapper;
+    packet->response = response;
+    return packet;
+}
+
+DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason) {
+    DisconnectPlayPacket *packet = malloc(sizeof(DisconnectPlayPacket));
+    uint8_t types_length = 1;
+    Types *types = malloc(1 * sizeof(Types));
+    Types typeArray[] = {
+            PKT_STRING
+    };
+    memcpy(types, typeArray, types_length * sizeof(Types));
+    MCVarInt *packet_id = writeVarInt(0x19);
+    PacketHeader wrapper = {
+            .member_types = types,
+            .members = types_length,
+            .direction = CLIENTBOUND,
+            .state = STATUS,
+            .packet_id = packet_id
+    };
+    packet->_header = wrapper;
+    packet->reason = reason;
+    return packet;
 }

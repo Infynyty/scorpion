@@ -73,12 +73,13 @@ void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket) {
 	buffer_write_little_endian(packet_size_bytes, packet_size_varint->bytes, packet_size_varint->length);
 	send_wrapper(socket, packet_size_varint->bytes, packet_size_varint->length);
 	buffer_free(packet_size_bytes);
+    free(packet_size_varint);
 	send_wrapper(socket, buffer->bytes, buffer->byte_size);
 }
 
 // Strings
 
-void buffer_read_string(NetworkBuffer *buffer, SocketWrapper *socket) {
+void buffer_receive_string(NetworkBuffer *buffer, SocketWrapper *socket) {
 	int string_length = varint_receive(socket);
 	buffer_receive(buffer, socket, string_length);
 	char string_terminator = '\0';

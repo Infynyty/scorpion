@@ -65,7 +65,7 @@ void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket);
  * @param buffer    The buffer that the string will be written to.
  * @param socket    The socket from which the input will be taken.
  */
-void buffer_read_string(NetworkBuffer *buffer, SocketWrapper *socket);
+void buffer_receive_string(NetworkBuffer *buffer, SocketWrapper *socket);
 
 /**
  * Attempts to print a buffer as a string.

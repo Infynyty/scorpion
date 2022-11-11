@@ -18,6 +18,6 @@ ClientState *client_state_new() {
 }
 
 void client_state_free(ClientState *clientState) {
-	free(clientState->position);
+//	free(clientState->position);
 	free(clientState);
 }

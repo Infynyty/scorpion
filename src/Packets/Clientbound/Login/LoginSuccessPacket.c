@@ -11,7 +11,7 @@ void login_success_packet_handle(SocketWrapper *socket) {
 	uint64_t uuid_high = buffer_receive_uint64(socket);
 	uint64_t uuid_low = buffer_receive_uint64(socket);
 	NetworkBuffer *username = buffer_new();
-	buffer_read_string(username, socket);
+    buffer_receive_string(username, socket);
 	int number_of_properties = varint_receive(socket);
 
 	cmc_log(INFO, "Client with username %s logged onto the server. ", username->bytes);
@@ -21,15 +21,15 @@ void login_success_packet_handle(SocketWrapper *socket) {
 	if (number_of_properties == 0) return;
 
 	NetworkBuffer *name = buffer_new();
-	buffer_read_string(name, socket);
+    buffer_receive_string(name, socket);
 	NetworkBuffer *value = buffer_new();
-	buffer_read_string(value, socket);
+    buffer_receive_string(value, socket);
 	NetworkBuffer *is_signed_buffer = buffer_new();
 	buffer_receive(is_signed_buffer, socket, 1);
 	bool is_signed = *(is_signed_buffer->bytes);
 	if (is_signed) {
 		NetworkBuffer *signature = buffer_new();
-		buffer_read_string(signature, socket);
+        buffer_receive_string(signature, socket);
 		buffer_free(signature);
 	}
 	cmc_log(DEBUG, "Name: %s, Values: %s", name->bytes, value->bytes);
