@@ -8,12 +8,12 @@
 
 #include "../../../Util/SocketWrapper.h"
 
-//typedef struct StatusPacket StatusPacket;
+//typedef struct StatusRequestPacket StatusRequestPacket;
 //
-//StatusPacket *status_packet_new();
+//StatusRequestPacket *status_request_packet_new();
 //
-//void status_packet_send(StatusPacket *packet, SocketWrapper *socket);
+//void status_packet_send(StatusRequestPacket *packet, SocketWrapper *socket);
 //
-//void status_packet_free(StatusPacket *packet);
+//void status_packet_free(StatusRequestPacket *packet);
 
 #endif //CMC_STATUSPACKET_H

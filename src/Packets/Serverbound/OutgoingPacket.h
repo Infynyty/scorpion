@@ -26,15 +26,19 @@ typedef struct {
 	MCVarInt *packet_id;
 } PacketHeader;
 
-void send_pkt_wrapper(PacketHeader *packet);
+void packet_send(PacketHeader *packet);
 
 void packet_free(PacketHeader *packet);
 
+/** State: Handshake **/
+
+/** Serverbound **/
+
 typedef enum HandshakeNextState {
-    HANDSHAKE_STATUS = 1, HANDSHAKE_LOGIN = 2
+	HANDSHAKE_STATUS = 1, HANDSHAKE_LOGIN = 2
 } HandshakeNextState;
 
-typedef struct HandshakePacket {
+typedef struct __attribute__((__packed__)) HandshakePacket {
 	PacketHeader _header;
 	MCVarInt *protocol_version;
 	NetworkBuffer *address;
@@ -44,16 +48,36 @@ typedef struct HandshakePacket {
 
 HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, HandshakeNextState state);
 
-typedef struct StatusPacket {
-	PacketHeader _header;
-} StatusPacket;
 
-StatusPacket *status_packet_new();
+/** State: Status **/
+
+/** Serverbound **/
+
+typedef struct StatusRequestPacket {
+	PacketHeader _header;
+} StatusRequestPacket;
+
+StatusRequestPacket *status_request_packet_new();
+
+typedef struct StatusResponsePacket {
+	PacketHeader _header;
+	NetworkBuffer *response;
+} StatusResponsePacket;
+
+StatusResponsePacket *status_response_packet_new();
 
 struct PingRequestPacket {
 	MCVarInt *packetID;
 	uint64_t *payload;
 };
+
+/** Clientbound **/
+
+
+
+/** State: Login **/
+
+/** Serverbound **/
 
 struct LoginStartPacket {
 	MCVarInt *packet_id;
@@ -67,6 +91,13 @@ struct ConfirmTeleportationPacket {
 	MCVarInt *packetID;
 	MCVarInt *teleportID;
 };
+
+/** Clientbound **/
+
+
+/** State: Play **/
+
+/** Serverbound **/
 
 
 #endif //CMC_OUTGOINGPACKET_H
