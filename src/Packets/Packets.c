@@ -9,7 +9,7 @@
 #include "Logger.h"
 
 
-uint8_t get_types_size(Types type) {
+uint8_t get_types_size(PacketField type) {
 	switch (type) {
 		case PKT_BOOL:
 			return sizeof(uint8_t);
@@ -37,7 +37,7 @@ void packet_send(PacketHeader *packet, SocketWrapper *socket) {
 	void *current_byte = packet + 1;
 	buffer_write_little_endian(buffer, packet->packet_id->bytes, packet->packet_id->length);
 	for (int i = 0; i < packet->members; ++i) {
-		Types m_type = packet->member_types[i];
+		PacketField m_type = packet->member_types[i];
 
         if (!packet->retain_types[i]) {
             switch (m_type) {
@@ -85,7 +85,7 @@ void packet_send(PacketHeader *packet, SocketWrapper *socket) {
 void packet_free(PacketHeader *packet) {
 	void *ptr = packet + 1;
 	for (int i = 0; i < packet->members; ++i) {
-		Types m_type = packet->member_types[i];
+		PacketField m_type = packet->member_types[i];
         if (packet->retain_types[i]) continue;
 		switch (m_type) {
 			case PKT_BOOL:
@@ -150,15 +150,15 @@ void packet_free(PacketHeader *packet) {
 HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, HandshakeNextState state) {
 	HandshakePacket *packet = malloc(sizeof(HandshakePacket));
 	uint8_t types_length = 4;
-	Types *types = malloc(types_length * sizeof(Types));
-	Types typeArray[] = {
+	PacketField *types = malloc(types_length * sizeof(PacketField));
+	PacketField typeArray[] = {
 			PKT_VARINT,
 			PKT_STRING,
 			PKT_UINT16,
 			PKT_VARINT
 	};
     bool *retain_element = calloc(types_length, sizeof(bool));
-	memcpy(types, typeArray, types_length * sizeof(Types));
+	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	MCVarInt *packet_id = writeVarInt(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
@@ -179,7 +179,7 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 StatusRequestPacket *status_request_packet_new() {
 	StatusRequestPacket *packet = malloc(sizeof(StatusRequestPacket));
 	uint8_t types_length = 0;
-	Types *types = NULL;
+	PacketField *types = NULL;
     bool *retain_element = calloc(types_length, sizeof(bool));
 	MCVarInt *packet_id = writeVarInt(0);
 	PacketHeader wrapper = {
@@ -197,12 +197,12 @@ StatusRequestPacket *status_request_packet_new() {
 StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
     StatusResponsePacket *packet = malloc(sizeof(StatusResponsePacket));
     uint8_t types_length = 1;
-    Types *types = malloc(1 * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(1 * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_STRING
     };
     bool *retain_element = calloc(types_length, sizeof(bool));
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     MCVarInt *packet_id = writeVarInt(0x00);
     PacketHeader wrapper = {
             .member_types = types,
@@ -220,8 +220,8 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool offline_mode) {
     LoginStartPacket *packet = malloc(sizeof(LoginStartPacket));
     uint8_t types_length = 7;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_STRING,
             PKT_BOOL,
             PKT_UINT64,
@@ -230,7 +230,7 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool offlin
             PKT_BOOL,
             PKT_UUID
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     if (offline_mode) {
         retain_element[2] = true;
@@ -264,14 +264,14 @@ LoginSuccessPacket *login_success_packet_new(
 ) {
     LoginSuccessPacket *packet = malloc(sizeof(LoginSuccessPacket));
     uint8_t types_length = 4;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_UUID,
             PKT_STRING,
             PKT_VARINT,
             PKT_BYTEARRAY
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     MCVarInt *packet_id = writeVarInt(0x02);
     PacketHeader wrapper = {
@@ -302,8 +302,8 @@ ClientInformationPacket *client_info_packet_new(
 ) {
     ClientInformationPacket *packet = malloc(sizeof(ClientInformationPacket));
     uint8_t types_length = 8;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_STRING,
             PKT_UINT8,
             PKT_VARINT,
@@ -313,7 +313,7 @@ ClientInformationPacket *client_info_packet_new(
             PKT_BOOL,
             PKT_BOOL
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     MCVarInt *packet_id = writeVarInt(0x08);
     PacketHeader header = {
@@ -346,8 +346,8 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
 ) {
     SetPlayerPosAndRotPacket *packet = malloc(sizeof(SetPlayerPosAndRotPacket));
     uint8_t types_length = 6;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_DOUBLE,
             PKT_DOUBLE,
             PKT_DOUBLE,
@@ -355,7 +355,7 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
             PKT_FLOAT,
             PKT_BOOL
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     MCVarInt *packet_id = writeVarInt(0x15);
     PacketHeader header = {
@@ -379,11 +379,11 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
 ClientCommandPacket *client_command_packet_new(MCVarInt *action) {
     ClientCommandPacket *packet = malloc(sizeof(ClientCommandPacket));
     uint8_t types_length = 1;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_VARINT
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     MCVarInt *packet_id = writeVarInt(0x07);
     PacketHeader header = {
@@ -402,11 +402,11 @@ ClientCommandPacket *client_command_packet_new(MCVarInt *action) {
 ConfirmTeleportationPacket *confirm_teleportation_packet_new(MCVarInt *teleport_id) {
     ConfirmTeleportationPacket *packet = malloc(sizeof(ConfirmTeleportationPacket));
     uint8_t types_length = 1;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_VARINT
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     MCVarInt *packet_id = writeVarInt(0x00);
     PacketHeader header = {
@@ -446,8 +446,8 @@ LoginPlayPacket *login_play_packet_new(
 ) {
     LoginPlayPacket *packet = malloc(sizeof(LoginPlayPacket));
     uint8_t types_length = 20;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_UINT32,
             PKT_BOOL,
             PKT_UINT8,
@@ -474,7 +474,7 @@ LoginPlayPacket *login_play_packet_new(
         retain_element[18] = true;
         retain_element[19] = true;
     }
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     MCVarInt *packet_id = writeVarInt(0x25);
     PacketHeader wrapper = {
             .member_types = types,
@@ -512,12 +512,12 @@ LoginPlayPacket *login_play_packet_new(
 DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason) {
     DisconnectPlayPacket *packet = malloc(sizeof(DisconnectPlayPacket));
     uint8_t types_length = 1;
-    Types *types = malloc(1 * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(1 * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_STRING
     };
     bool *retain_element = calloc(types_length, sizeof(bool));
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     MCVarInt *packet_id = writeVarInt(0x19);
     PacketHeader wrapper = {
             .member_types = types,
@@ -544,8 +544,8 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
 ) {
     SynchronizePlayerPositionPacket *packet = malloc(sizeof(SynchronizePlayerPositionPacket));
     uint8_t types_length = 8;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_DOUBLE,
             PKT_DOUBLE,
             PKT_DOUBLE,
@@ -555,7 +555,7 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
             PKT_VARINT,
             PKT_BOOL
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     MCVarInt *packet_id = writeVarInt(0x39);
     PacketHeader header = {
@@ -581,12 +581,12 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
 UpdateRecipesPacket *update_recipes_packet_new(MCVarInt *no_of_recipes, NetworkBuffer *recipes) {
     UpdateRecipesPacket *packet = malloc(sizeof(UpdateRecipesPacket));
     uint8_t types_length = 2;
-    Types *types = malloc(types_length * sizeof(Types));
-    Types typeArray[] = {
+    PacketField *types = malloc(types_length * sizeof(PacketField));
+    PacketField typeArray[] = {
             PKT_VARINT,
             PKT_STRING
     };
-    memcpy(types, typeArray, types_length * sizeof(Types));
+    memcpy(types, typeArray, types_length * sizeof(PacketField));
     bool *retain_element = calloc(types_length, sizeof(bool));
     MCVarInt *packet_id = writeVarInt(0x39);
     PacketHeader header = {

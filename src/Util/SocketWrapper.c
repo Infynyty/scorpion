@@ -73,11 +73,11 @@ void send_wrapper(SocketWrapper *socket, void *bytes, size_t length) {
 #endif
 }
 
-void receive_wrapper(SocketWrapper *socket, void *bytes, size_t size) {
+int receive_wrapper(SocketWrapper *socket, void *bytes, size_t size) {
 #ifdef _WIN32
-	recv(socket->socket, bytes, size, 0);
+    return recv(socket->socket, bytes, size, 0);
 #endif
 #if defined(__APPLE__) || defined(__linux__)
-	recv(socket->socket, bytes, size, 0);
+	return recv(socket->socket, bytes, size, 0);
 #endif
 }

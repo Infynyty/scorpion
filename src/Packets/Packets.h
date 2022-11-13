@@ -1,6 +1,6 @@
-//
-// Created by Kasimir on 04.11.2022.
-//
+/**
+ * Contains all methods, structs and enums that are helpful to create, manage, send and free packets.
+ */
 
 #ifndef CMC_PACKETS_H
 #define CMC_PACKETS_H
@@ -11,16 +11,16 @@
 #include "NetworkBuffer.h"
 #include "ConnectionState.h"
 
-typedef enum Types {
+typedef enum PacketField {
     PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_FLOAT,
     PKT_DOUBLE, PKT_STRING, PKT_CHAT, PKT_IDENTIFIER, PKT_VARINT, PKT_VARLONG,
     PKT_ENTITYMETA, PKT_SLOT, PKT_NBTTAG, PKT_OPTIONAL, PKT_ARRAY, PKT_ENUM,
     PKT_BYTEARRAY, PKT_UUID
-} Types;
+} PacketField;
 
 typedef struct {
     uint8_t members;
-    Types *member_types;
+    PacketField *member_types;
     bool *retain_types;
     ConnectionState state;
     PacketDirection direction;

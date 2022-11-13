@@ -1,8 +1,0 @@
-//
-// Created by Kasimir Stadie on 26.10.22.
-//
-
-#ifndef CMC_SETPLAYERROTATIONPACKET_H
-#define CMC_SETPLAYERROTATIONPACKET_H
-
-#endif //CMC_SETPLAYERROTATIONPACKET_H

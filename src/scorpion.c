@@ -1,9 +1,10 @@
 #include <string.h>
 #include <unistd.h>
-#include "Packets/Clientbound/PacketHandler.h"
+#include <malloc.h>
+#include "Packets/PacketHandler.h"
 #include "Util/Logging/Logger.h"
 #include "SocketWrapper.h"
-#include "Packets/Serverbound/Packets.h"
+#include "Packets/Packets.h"
 
 void print_status_response(void *packet) {
     StatusResponsePacket *response = packet;
@@ -12,7 +13,7 @@ void print_status_response(void *packet) {
 
 void print_disconnect(void *packet) {
     DisconnectPlayPacket *reason = packet;
-    buffer_print_string(reason->reason);
+    cmc_log(INFO, "Disconnected: %s", reason->reason->bytes);
 }
 
 void handle_login_success(void *packet) {
@@ -55,23 +56,34 @@ void handle_init_pos(void *packet) {
         true
     );
     packet_send(&ppr->_header, get_socket());
+    packet_free(&ppr->_header);
     cmc_log(INFO, "Sent position.");
 
     ClientCommandPacket *cmd = client_command_packet_new(writeVarInt(CLIENT_ACTION_RESPAWN));
     packet_send(&cmd->_header, get_socket());
     packet_free(&cmd->_header);
 
-    usleep(100*1000);
-    ppr->x = sync->x + 0.5f;
-    packet_send(&ppr->_header, get_socket());
-    packet_free(&ppr->_header);
+    double currentX = sync->y;
+//    for (int i = 0; i < 100; ++i) {
+        SetPlayerPosAndRotPacket *ppr_new = set_player_pos_and_rot_packet_new(
+                sync->x + 0.05,
+                sync->y,
+                sync->z,
+                sync->yaw,
+                sync->pitch,
+                true
+        );
+        currentX += -100.0f;
+        ppr_new->y = currentX;
+        cmc_log(DEBUG, "Position x: %lf", currentX);
+        cmc_log(DEBUG, "Sending packet x: %lf", currentX);
+        packet_send(&ppr_new->_header, get_socket());
+        packet_free(&ppr_new->_header);
+//    }
+
 }
 
 int main() {
-//    int test = 0x6eba5;
-//    int decoded = varint_decode((unsigned char *) &test);
-//
-//    exit(EXIT_SUCCESS);
 
 	SocketWrapper *socket_wrapper = connect_wrapper();
 	cmc_log(INFO, "Connected succesfully!");

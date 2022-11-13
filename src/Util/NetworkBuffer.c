@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include "NetworkBuffer.h"
 #include "SocketWrapper.h"
+#include "Logger.h"
 
 #define MAX_BUFFER_SIZE 2097151 // maximum length for a packet
 
@@ -191,9 +192,7 @@ float buffer_receive_float(SocketWrapper *socket) {
 	buffer_receive(buffer, socket, sizeof(float));
 	buffer_swap_endianness(buffer);
 	float result = 0;
-    for (int i = 0; i < sizeof(float); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(float) - i - 1);
-    }
+    memcpy(&result, buffer->bytes, sizeof(float ));
 	buffer_free(buffer);
 	return result;
 }
@@ -203,15 +202,20 @@ double buffer_receive_double(SocketWrapper *socket) {
 	buffer_receive(buffer, socket, sizeof(double));
 	buffer_swap_endianness(buffer);
 	double result = 0;
-    for (int i = 0; i < sizeof(double); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(double) - i - 1);
-    }
+    memcpy(&result, buffer->bytes, sizeof(double));
 	buffer_free(buffer);
 	return result;
 }
 
 void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length) {
 	char bytes[length];
-	receive_wrapper(socket, bytes, (int) length);
-	buffer_write_bytes(buffer, bytes, length);
+    int received_bytes = 0;
+    while (1) {
+        int response = receive_wrapper(socket, bytes, (int) length - received_bytes);
+        received_bytes += response;
+        buffer_write_bytes(buffer, bytes, received_bytes);
+        if (received_bytes == length) {
+            break;
+        }
+    }
 }

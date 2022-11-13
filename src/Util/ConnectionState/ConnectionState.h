@@ -1,7 +1,3 @@
-//
-// Created by Kasimir on 14.10.2022.
-//
-
 #ifndef CMC_CONNECTIONSTATE_H
 #define CMC_CONNECTIONSTATE_H
 

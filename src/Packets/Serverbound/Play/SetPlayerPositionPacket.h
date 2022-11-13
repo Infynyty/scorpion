@@ -1,8 +1,0 @@
-//
-// Created by Kasimir Stadie on 26.10.22.
-//
-
-#ifndef CMC_SETPLAYERPOSITIONPACKET_H
-#define CMC_SETPLAYERPOSITIONPACKET_H
-
-#endif //CMC_SETPLAYERPOSITIONPACKET_H

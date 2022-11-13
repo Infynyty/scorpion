@@ -1,20 +1,11 @@
-//
-// Created by Kasimir on 14.10.2022.
-//
-
 #include "PacketHandler.h"
-#include "../../Util/VarInt/MCVarInt.h"
-#include <stdio.h>
+#include "VarInt/MCVarInt.h"
 #include <stdlib.h>
+#include <unistd.h>
 
-#include "Status/PingResponsePacket.h"
-#include "../../Util/NetworkBuffer.h"
-#include "../../Util/Logging/Logger.h"
-#include "Login/SetCompressionPacket.h"
-#include "Login/DisconnectLoginPacket.h"
-#include "Login/LoginSuccessPacket.h"
-#include "Play/SynchronizePlayerPositionPacket.h"
-#include "../Serverbound/Packets.h"
+#include "NetworkBuffer.h"
+#include "Logging/Logger.h"
+#include "Packets.h"
 #include "NBTParser.h"
 
 
@@ -129,14 +120,14 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
     while (true) {
         int packet_length_total = varint_receive(socket) - 1; //TODO: Assumes packet ids are always one byte
 
-        if (packet_length_total == -1) {
-            return;
+        if (packet_length_total < 0) {
+            continue;
         }
         int packet_id = varint_receive(socket);
 
         if (packet_id > 1000) {
             cmc_log(ERR, "Illegal packet id %d, packet size: %d", packet_id, packet_length_total);
-            return;
+            continue;
         }
         switch (connectionState) {
             case STATUS:
@@ -149,9 +140,6 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
                         packet_event(STATUS_RESPONSE_PKT, &(packet->_header));
                         break;
                     }
-                    case PING_RESPONSE:
-                        ping_response_packet_handle(socket);
-                        break;
                     default:
                         consume_packet(socket, packet_length_total);
                         cmc_log(DEBUG, "Consumed packet with id %d.", packet_id);
@@ -161,9 +149,6 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 
             case LOGIN:
                 switch (packet_id) {
-                    case DISCONNECT_LOGIN:
-                        disconnect_login_packet_handle(socket);
-                        return;
                     case LOGIN_SUCCESS_ID: {
                         cmc_log(DEBUG, "Received Login Success Packet.");
                         connectionState = PLAY;
@@ -175,7 +160,7 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
                         NetworkBuffer *username = buffer_new();
                         buffer_receive_string(username, socket);
 
-                        uint32_t no_of_properties = buffer_receive_uint32_t(socket);
+                        uint32_t no_of_properties = varint_receive(socket);
 
                         NetworkBuffer *properties_array = buffer_new();
                         for (int i = 0; i < no_of_properties; ++i) {
@@ -198,9 +183,6 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
                         packet_event(LOGIN_SUCCESS, &packet->_header);
                         break;
                     }
-                    case SET_COMPRESSION:
-                        set_compression_packet_handle(socket);
-                        break;
                     default:
                         consume_packet(socket, packet_length_total);
                         cmc_log(DEBUG, "Consumed packet with id %d in Login State.", packet_id);
@@ -307,11 +289,6 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
                             dismount_vehicle
                         );
                         packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet->_header);
-                        break;
-                    }
-                    case SET_HELD_ITEM_ID: {
-                        cmc_log(DEBUG, "Held item packet, length = %d", packet_length_total);
-                        consume_packet(socket, packet_length_total);
                         break;
                     }
                     case UPDATE_RECIPES_ID: {

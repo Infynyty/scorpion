@@ -1,13 +1,9 @@
-//
-// Created by Kasimir on 14.10.2022.
-//
-
 #ifndef CMC_PACKETHANDLER_H
 #define CMC_PACKETHANDLER_H
 
-#include "../../Util/ConnectionState/ConnectionState.h"
-#include "../../Util/SocketWrapper.h"
-#include "../../State/ClientState.h"
+#include "ConnectionState/ConnectionState.h"
+#include "SocketWrapper.h"
+#include "../State/ClientState.h"
 
 typedef enum Packets {
     // Handshake
