@@ -27,6 +27,8 @@ typedef struct SocketWrapper {
 #endif
 } SocketWrapper;
 
+static const SocketWrapper *server;
+
 SocketWrapper *connect_wrapper() {
 	SocketWrapper *socketWrapper = malloc(sizeof(SocketWrapper));
 #ifdef _WIN32
@@ -54,7 +56,12 @@ SocketWrapper *connect_wrapper() {
 		cmc_log(ERR, "Error code: %d", errno);
 		exit(EXIT_FAILURE);
 	}
+    server = socketWrapper;
 	return socketWrapper;
+}
+
+const SocketWrapper *get_socket() {
+    return server;
 }
 
 void send_wrapper(SocketWrapper *socket, void *bytes, size_t length) {

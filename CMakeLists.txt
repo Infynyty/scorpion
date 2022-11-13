@@ -26,8 +26,6 @@ add_executable(scorpion
         src/Packets/Clientbound/Status/PingResponsePacket.h
         src/Packets/Clientbound/PacketHandler.c
         src/Packets/Clientbound/PacketHandler.h
-        src/Packets/Serverbound/Login/LoginStartPacket.c
-        src/Packets/Serverbound/Login/LoginStartPacket.h
         src/Util/ConnectionState/ConnectionState.c
         src/Util/ConnectionState/ConnectionState.h
         src/Util/Logging/Logger.c
@@ -40,7 +38,7 @@ add_executable(scorpion
         src/Util/NetworkBuffer.h
         src/Util/SocketWrapper.c
         src/Util/SocketWrapper.h
-        src/scorpion.c src/Packets/Clientbound/Play/SynchronizePlayerPositionPacket.c src/Packets/Clientbound/Play/SynchronizePlayerPositionPacket.h src/State/PlayState.c src/State/PlayState.h src/State/ClientState.c src/State/ClientState.h src/State/ServerState.c src/State/ServerState.h src/State/WorldState.c src/State/WorldState.h src/State/Position.c src/State/Position.h src/Packets/Serverbound/Play/ConfirmTeleportationPacket.c src/Packets/Serverbound/Play/ConfirmTeleportationPacket.h src/Packets/Serverbound/Play/SetPlayerPositionPacket.c src/Packets/Serverbound/Play/SetPlayerPositionPacket.h src/Packets/Serverbound/Play/SetPlayerRotationPacket.c src/Packets/Serverbound/Play/SetPlayerRotationPacket.h src/Packets/Serverbound/Play/SetPlayerPositionRotationPacket.c src/Packets/Serverbound/Play/SetPlayerPositionRotationPacket.h src/Packets/Serverbound/Packets.c src/Packets/Serverbound/Packets.h)
+        src/scorpion.c src/Packets/Clientbound/Play/SynchronizePlayerPositionPacket.c src/Packets/Clientbound/Play/SynchronizePlayerPositionPacket.h src/State/PlayState.c src/State/PlayState.h src/State/ClientState.c src/State/ClientState.h src/State/ServerState.c src/State/ServerState.h src/State/WorldState.c src/State/WorldState.h src/State/Position.c src/State/Position.h src/Packets/Serverbound/Play/SetPlayerPositionPacket.c src/Packets/Serverbound/Play/SetPlayerPositionPacket.h src/Packets/Serverbound/Play/SetPlayerRotationPacket.c src/Packets/Serverbound/Play/SetPlayerRotationPacket.h src/Packets/Serverbound/Play/SetPlayerPositionRotationPacket.c src/Packets/Serverbound/Play/SetPlayerPositionRotationPacket.h src/Packets/Serverbound/Packets.c src/Packets/Serverbound/Packets.h src/Util/NBTParser.c src/Util/NBTParser.h)
 
 if (WIN32)
     target_link_libraries(scorpion wsock32 ws2_32)

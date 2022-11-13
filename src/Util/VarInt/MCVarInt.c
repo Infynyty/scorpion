@@ -29,18 +29,14 @@ void int_bitarray_to_varint_bitarray(bool *array, int *size) {
 
 	for (int current_byte = 0; current_byte < MAX_VARINT_LENGTH_IN_BYTES; ++current_byte) {
 		bool are_next_bytes_used = false;
-		if (current_byte < MAX_VARINT_LENGTH_IN_BYTES - 1) {
-			for (int j = (current_byte + 1) * BYTE_LENGTH_IN_BIT;
-			     j < MAX_VARINT_LENGTH_IN_BYTES * BYTE_LENGTH_IN_BIT; ++j) {
-				if (array[j]) {
-					are_next_bytes_used = true;
-					break;
-				}
-			}
-		}
+        for (int current_bit = (current_byte * BYTE_LENGTH_IN_BIT) + 7; current_bit < MAX_VARINT_LENGTH_IN_BYTES * BYTE_LENGTH_IN_BIT; ++current_bit) {
+            if (array[current_bit]) {
+                are_next_bytes_used = true;
+                break;
+            }
+        }
 		if (are_next_bytes_used) {
-			for (int j = MAX_VARINT_LENGTH_IN_BYTES * BYTE_LENGTH_IN_BIT - 1;
-			     j > (current_byte + 1) * BYTE_LENGTH_IN_BIT - 1; --j) {
+			for (int j = MAX_VARINT_LENGTH_IN_BYTES * BYTE_LENGTH_IN_BIT - 1; j > (current_byte + 1) * BYTE_LENGTH_IN_BIT - 1; --j) {
 				array[j] = array[j - 1];
 			}
 			array[(current_byte * 8) + 7] = true;
@@ -80,18 +76,33 @@ MCVarInt *writeVarInt(unsigned int givenInt) {
 }
 
 int varint_receive(SocketWrapper *socket) {
-	char current_byte = 0;
+	unsigned char current_byte = 0;
 	int result = 0;
 	const int CONTINUE_BIT = 0b10000000;
 	const int SEGMENT_BITS = 0b01111111;
 	for (int i = 0; i < 5; ++i) {
 		current_byte = buffer_receive_uint8_t(socket);
-		result += (current_byte & SEGMENT_BITS) << (8 * i);
+        result += (current_byte & SEGMENT_BITS) << (8 * i - i);
 		if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
 			break;
 		}
 	}
 	return result;
+}
+
+uint32_t varint_decode(unsigned char *buffer) {
+    unsigned char current_byte = 0;
+    int result = 0;
+    const int CONTINUE_BIT = 0b10000000;
+    const int SEGMENT_BITS = 0b01111111;
+    for (int i = 0; i < 5; ++i) {
+        current_byte = *(buffer + i);
+        result += (current_byte & SEGMENT_BITS) << (8 * i - i);
+        if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
+            break;
+        }
+    }
+    return result;
 }
 
 uint8_t *get_bytes(MCVarInt *varInt) {

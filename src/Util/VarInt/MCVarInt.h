@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include "../SocketWrapper.h"
+#include "NetworkBuffer.h"
 
 typedef struct MCVarInt {
 	char length;
@@ -22,5 +23,7 @@ uint8_t *get_bytes(MCVarInt *varInt);
 unsigned char get_length(MCVarInt *varInt);
 
 int varint_receive(SocketWrapper *socket);
+
+uint32_t varint_decode(unsigned char *buffer);
 
 #endif //CMC_MCVARINT_H

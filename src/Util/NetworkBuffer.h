@@ -26,6 +26,8 @@ typedef struct NetworkBuffer {
  */
 NetworkBuffer *buffer_new();
 
+NetworkBuffer *string_buffer_new(char *string);
+
 /**
  * Frees a given buffer alongside its bytes.
  * @param buffer The buffer to be freed.
@@ -81,10 +83,15 @@ void buffer_print_string(NetworkBuffer *buffer);
  */
 void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length);
 
+int8_t buffer_receive_int8_t(SocketWrapper *socket);
 uint8_t buffer_receive_uint8_t(SocketWrapper *socket);
 
-
-uint64_t buffer_receive_uint64(SocketWrapper *socket);
+uint16_t buffer_receive_uint16_t(SocketWrapper *socket);
+int16_t buffer_receive_int16_t(SocketWrapper *socket);
+int32_t buffer_receive_int32_t(SocketWrapper *socket);
+uint32_t buffer_receive_uint32_t(SocketWrapper *socket);
+uint64_t buffer_receive_uint64_t(SocketWrapper *socket);
+int64_t buffer_receive_int64_t(SocketWrapper *socket);
 
 
 float buffer_receive_float(SocketWrapper *socket);

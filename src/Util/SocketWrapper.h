@@ -22,6 +22,8 @@ typedef struct SocketWrapper {
 
 SocketWrapper *connect_wrapper();
 
+const SocketWrapper *get_socket();
+
 void receive_wrapper(SocketWrapper *socket, void *bytes, size_t size);
 
 void send_wrapper(SocketWrapper *socket, void *bytes, size_t length);

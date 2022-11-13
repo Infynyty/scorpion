@@ -9,10 +9,6 @@
 #include <stdbool.h>
 #include "Position.h"
 
-#define SURVIVAL    0
-#define CREATIVE    1
-#define ADVENTURE   2
-#define SPECTATOR   3
 
 typedef struct ClientStatestruct {
 	Position *position;
