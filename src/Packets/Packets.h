@@ -21,7 +21,7 @@ typedef enum PacketField {
 typedef struct {
 	uint8_t members;
 	PacketField *member_types;
-	bool *retain_types;
+	bool **optionals;
 	ConnectionState state;
 	PacketDirection direction;
 	MCVarInt *packet_id;

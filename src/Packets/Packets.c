@@ -1,7 +1,3 @@
-//
-// Created by Kasimir on 04.11.2022.
-//
-
 #include <stdlib.h>
 #include "Packets.h"
 #include "MCVarInt.h"
@@ -39,7 +35,8 @@ void packet_send(PacketHeader *packet, SocketWrapper *socket) {
 	for (int i = 0; i < packet->members; ++i) {
 		PacketField m_type = packet->member_types[i];
 
-		if (!packet->retain_types[i]) {
+		bool *is_optional = packet->optionals[i];
+		if (is_optional == NULL || !*is_optional) {
 			switch (m_type) {
 				case PKT_BOOL:
 				case PKT_UINT8:
@@ -86,7 +83,8 @@ void packet_free(PacketHeader *packet) {
 	void *ptr = packet + 1;
 	for (int i = 0; i < packet->members; ++i) {
 		PacketField m_type = packet->member_types[i];
-		if (packet->retain_types[i]) continue;
+		bool *is_optional = packet->optionals[i];
+		if (is_optional != NULL && *is_optional) continue;
 		switch (m_type) {
 			case PKT_BOOL:
 			case PKT_BYTE:
@@ -142,6 +140,11 @@ void packet_free(PacketHeader *packet) {
 				exit(EXIT_FAILURE);
 		}
 	}
+
+	for (int i = 0; i < packet->members; ++i) {
+		free(packet->optionals[i]);
+	}
+	free(packet->optionals);
 	free(packet->member_types);
 	free(packet->packet_id);
 	free(packet);
@@ -151,6 +154,10 @@ void packet_receive(PacketHeader *header) {
 	void *ptr = header + 1;
 	for (int i = 0; i < header->members; ++i) {
 		PacketField field = header->member_types[i];
+
+		bool *is_optional = header->optionals[i];
+		if (is_optional != NULL && *is_optional) continue;
+
 		void *variable_pointer;
 		size_t variable_size;
 		switch (field) {
@@ -252,13 +259,13 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 			PKT_UINT16,
 			PKT_VARINT
 	};
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	MCVarInt *packet_id = writeVarInt(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = optionals,
 			.direction = SERVERBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -280,7 +287,7 @@ StatusRequestPacket *status_request_packet_new() {
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = SERVERBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -302,7 +309,7 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -337,7 +344,7 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool offlin
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -372,7 +379,7 @@ LoginSuccessPacket *login_success_packet_new(
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -414,7 +421,7 @@ ClientInformationPacket *client_info_packet_new(
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -456,7 +463,7 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -484,7 +491,7 @@ ClientCommandPacket *client_command_packet_new(MCVarInt *action) {
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -507,7 +514,7 @@ ConfirmTeleportationPacket *confirm_teleportation_packet_new(MCVarInt *teleport_
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = SERVERBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -574,7 +581,7 @@ LoginPlayPacket *login_play_packet_new(
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -617,7 +624,7 @@ DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason) {
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -656,7 +663,7 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -687,7 +694,7 @@ UpdateRecipesPacket *update_recipes_packet_new(MCVarInt *no_of_recipes, NetworkB
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -712,7 +719,7 @@ ChangeDifficultyPacket *change_difficulty_packet_new(uint8_t difficulty, bool di
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -738,7 +745,7 @@ PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float fly
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.retain_types = retain_element,
+			.optionals = retain_element,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
