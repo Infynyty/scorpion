@@ -3,6 +3,7 @@
 #include "MCVarInt.h"
 #include "NetworkBuffer.h"
 #include "Logger.h"
+#include "NBTParser.h"
 
 
 uint8_t get_types_size(PacketField type) {
@@ -36,7 +37,7 @@ void packet_send(PacketHeader *packet, SocketWrapper *socket) {
 		PacketField m_type = packet->member_types[i];
 
 		bool *is_optional = packet->optionals[i];
-		if (is_optional == NULL || !*is_optional) {
+		if (is_optional == NULL || *is_optional) {
 			switch (m_type) {
 				case PKT_BOOL:
 				case PKT_UINT8:
@@ -83,8 +84,8 @@ void packet_free(PacketHeader *packet) {
 	void *ptr = packet + 1;
 	for (int i = 0; i < packet->members; ++i) {
 		PacketField m_type = packet->member_types[i];
-		bool *is_optional = packet->optionals[i];
-		if (is_optional != NULL && *is_optional) continue;
+		bool *optional_present = packet->optionals[i];
+		if (optional_present != NULL && !*optional_present) continue;
 		switch (m_type) {
 			case PKT_BOOL:
 			case PKT_BYTE:
@@ -105,7 +106,9 @@ void packet_free(PacketHeader *packet) {
 			}
 			case PKT_ARRAY:
 			case PKT_BYTEARRAY:
+            case PKT_STRING_ARRAY:
 			case PKT_UUID:
+            case PKT_NBTTAG:
 			case PKT_STRING: {
 				NetworkBuffer **string = (NetworkBuffer **) ptr;
 				buffer_free(*string);
@@ -131,7 +134,6 @@ void packet_free(PacketHeader *packet) {
 			case PKT_IDENTIFIER:
 			case PKT_ENTITYMETA:
 			case PKT_SLOT:
-			case PKT_NBTTAG:
 			case PKT_OPTIONAL:
 			case PKT_ENUM:
 			case PKT_CHAT:
@@ -141,9 +143,6 @@ void packet_free(PacketHeader *packet) {
 		}
 	}
 
-	for (int i = 0; i < packet->members; ++i) {
-		free(packet->optionals[i]);
-	}
 	free(packet->optionals);
 	free(packet->member_types);
 	free(packet->packet_id);
@@ -220,6 +219,16 @@ void packet_receive(PacketHeader *header) {
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
+            case PKT_STRING_ARRAY: {
+                NetworkBuffer *strings = buffer_new();
+                uint32_t length = varint_receive(get_socket());
+                for (int j = 0; j < length; ++j) {
+                    buffer_receive_string(strings, get_socket());
+                }
+                variable_pointer = &strings;
+                variable_size = sizeof(NetworkBuffer *);
+                break;
+            }
 			case PKT_STRING: {
 				NetworkBuffer *string = buffer_new();
 				buffer_receive_string(string, get_socket());
@@ -227,12 +236,18 @@ void packet_receive(PacketHeader *header) {
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
+            case PKT_NBTTAG: {
+                NetworkBuffer *nbt = buffer_new();
+                consume_nbt_data(get_socket());
+                variable_pointer = &nbt;
+                variable_size = sizeof(NetworkBuffer *);
+                break;
+            }
 			case PKT_CHAT:
 			case PKT_IDENTIFIER:
 			case PKT_VARLONG:
 			case PKT_ENTITYMETA:
 			case PKT_SLOT:
-			case PKT_NBTTAG:
 			case PKT_OPTIONAL:
 			case PKT_ARRAY:
 			case PKT_ENUM:
@@ -282,12 +297,12 @@ StatusRequestPacket *status_request_packet_new() {
 	StatusRequestPacket *packet = malloc(sizeof(StatusRequestPacket));
 	uint8_t types_length = 0;
 	PacketField *types = NULL;
-	bool *retain_element = calloc(types_length, sizeof(bool));
+    bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = SERVERBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -303,13 +318,13 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	PacketField typeArray[] = {
 			PKT_STRING
 	};
-	bool *retain_element = calloc(types_length, sizeof(bool));
+    bool **optionals = calloc(types_length, sizeof(bool *));
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	MCVarInt *packet_id = writeVarInt(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -319,7 +334,7 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	return packet;
 }
 
-LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool offline_mode) {
+LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_sig_data, bool has_player_uuid) {
 	LoginStartPacket *packet = malloc(sizeof(LoginStartPacket));
 	uint8_t types_length = 7;
 	PacketField *types = malloc(types_length * sizeof(PacketField));
@@ -333,26 +348,28 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool offlin
 			PKT_UUID
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
-	if (offline_mode) {
-		retain_element[2] = true;
-		retain_element[3] = true;
-		retain_element[4] = true;
-		retain_element[6] = true;
+	bool **optionals = calloc(types_length, sizeof(bool *));
+	if (!has_sig_data) {
+		optionals[2] = &packet->has_sig_data;
+		optionals[3] = &packet->has_sig_data;
+		optionals[4] = &packet->has_sig_data;
 	}
+    if (!has_player_uuid) {
+        optionals[6] = &packet->has_player_uuid;
+    }
 	MCVarInt *packet_id = writeVarInt(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
 	};
 	packet->_header = wrapper;
 	packet->player_name = player_name;
-	packet->has_sig_data = !offline_mode;
-	packet->has_player_uuid = !offline_mode;
+	packet->has_sig_data = has_sig_data;
+	packet->has_player_uuid = has_player_uuid;
 	return packet;
 }
 
@@ -374,12 +391,12 @@ LoginSuccessPacket *login_success_packet_new(
 			PKT_BYTEARRAY
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x02);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -416,12 +433,12 @@ ClientInformationPacket *client_info_packet_new(
 			PKT_BOOL
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x08);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -458,12 +475,12 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
 			PKT_BOOL
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x15);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -486,12 +503,12 @@ ClientCommandPacket *client_command_packet_new(MCVarInt *action) {
 			PKT_VARINT
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x07);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -509,12 +526,12 @@ ConfirmTeleportationPacket *confirm_teleportation_packet_new(MCVarInt *teleport_
 			PKT_VARINT
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x00);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = SERVERBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -529,8 +546,7 @@ LoginPlayPacket *login_play_packet_new(
 		bool is_hardcore,
 		uint8_t gamemode,
 		uint8_t previous_gamemode,
-		MCVarInt *dimension_count,
-		NetworkBuffer *dimension_names,
+		NetworkBuffer *dimensions,
 		NetworkBuffer *registry_codec,
 		NetworkBuffer *spawn_dimension_name,
 		NetworkBuffer *spawn_dimension_type,
@@ -547,16 +563,15 @@ LoginPlayPacket *login_play_packet_new(
 		uint64_t death_location
 ) {
 	LoginPlayPacket *packet = malloc(sizeof(LoginPlayPacket));
-	uint8_t types_length = 20;
+	uint8_t types_length = 19;
 	PacketField *types = malloc(types_length * sizeof(PacketField));
 	PacketField typeArray[] = {
 			PKT_UINT32,
 			PKT_BOOL,
 			PKT_UINT8,
 			PKT_UINT8,
-			PKT_VARINT,
-			PKT_ARRAY,
-			PKT_BYTEARRAY,
+			PKT_STRING_ARRAY,
+			PKT_NBTTAG,
 			PKT_STRING,
 			PKT_STRING,
 			PKT_UINT64,
@@ -571,17 +586,17 @@ LoginPlayPacket *login_play_packet_new(
 			PKT_STRING,
 			PKT_UINT64
 	};
-	bool *retain_element = calloc(types_length, sizeof(bool));
-	if (!has_death_location) {
-		retain_element[18] = true;
-		retain_element[19] = true;
+	bool **optionals = calloc(types_length, sizeof(bool *));
+	if (has_death_location) {
+		optionals[17] = &packet->has_death_location;
+		optionals[18] = &packet->has_death_location;
 	}
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	MCVarInt *packet_id = writeVarInt(0x25);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -591,8 +606,7 @@ LoginPlayPacket *login_play_packet_new(
 	packet->is_hardcore = is_hardcore;
 	packet->gamemode = (uint8_t) gamemode;
 	packet->previous_gamemode = (int8_t) previous_gamemode;
-	packet->dimension_count = dimension_count;
-	packet->dimension_names = dimension_names;
+	packet->dimensions = dimensions;
 	packet->registry_codec = registry_codec;
 	packet->spawn_dimension_name = spawn_dimension_name;
 	packet->spawn_dimension_type = spawn_dimension_type;
@@ -618,13 +632,13 @@ DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason) {
 	PacketField typeArray[] = {
 			PKT_STRING
 	};
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	MCVarInt *packet_id = writeVarInt(0x19);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -658,12 +672,12 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
 			PKT_BOOL
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x39);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -689,12 +703,12 @@ UpdateRecipesPacket *update_recipes_packet_new(MCVarInt *no_of_recipes, NetworkB
 			PKT_STRING
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x39);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -714,12 +728,12 @@ ChangeDifficultyPacket *change_difficulty_packet_new(uint8_t difficulty, bool di
 			PKT_BOOL
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x0b);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id
@@ -740,12 +754,12 @@ PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float fly
 			PKT_FLOAT
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool *retain_element = calloc(types_length, sizeof(bool));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0x31);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
-			.optionals = retain_element,
+			.optionals = optionals,
 			.direction = CLIENTBOUND,
 			.state = STATUS,
 			.packet_id = packet_id

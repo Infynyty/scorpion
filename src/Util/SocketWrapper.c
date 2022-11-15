@@ -75,7 +75,11 @@ void send_wrapper(SocketWrapper *socket, void *bytes, size_t length) {
 
 int receive_wrapper(SocketWrapper *socket, void *bytes, size_t size) {
 #ifdef _WIN32
-    return recv(socket->socket, bytes, size, 0);
+    int response = recv(socket->socket, bytes, size, 0);
+    if (response == -1) {
+        cmc_log(ERR, "Error during receive: %d, check Winsock Error codes for more info.", WSAGetLastError());
+    }
+    return response;
 #endif
 #if defined(__APPLE__) || defined(__linux__)
 	return recv(socket->socket, bytes, size, 0);

@@ -15,13 +15,13 @@ typedef enum PacketField {
 	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_FLOAT,
 	PKT_DOUBLE, PKT_STRING, PKT_CHAT, PKT_IDENTIFIER, PKT_VARINT, PKT_VARLONG,
 	PKT_ENTITYMETA, PKT_SLOT, PKT_NBTTAG, PKT_OPTIONAL, PKT_ARRAY, PKT_ENUM,
-	PKT_BYTEARRAY, PKT_UUID
+	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY
 } PacketField;
 
 typedef struct {
 	uint8_t members;
 	PacketField *member_types;
-	bool **optionals;
+	bool **optionals;           // indicates whether optional fields are present
 	ConnectionState state;
 	PacketDirection direction;
 	MCVarInt *packet_id;
@@ -93,7 +93,7 @@ typedef struct __attribute__((__packed__)) LoginStartPacket {
 	NetworkBuffer *uuid;
 } LoginStartPacket;
 
-LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool offline_mode);
+LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_sig_data, bool has_player_uuid);
 
 /** Clientbound **/
 
@@ -207,8 +207,7 @@ typedef struct __attribute__((__packed__)) LoginPlayPacket {
 	bool is_hardcore;
 	uint8_t gamemode;
 	uint8_t previous_gamemode;
-	MCVarInt *dimension_count;
-	NetworkBuffer *dimension_names;
+	NetworkBuffer *dimensions;
 	NetworkBuffer *registry_codec;
 	NetworkBuffer *spawn_dimension_name;
 	NetworkBuffer *spawn_dimension_type;
@@ -230,8 +229,7 @@ LoginPlayPacket *login_play_packet_new(
 		bool is_hardcore,
 		uint8_t gamemode,
 		uint8_t previous_gamemode,
-		MCVarInt *dimension_count,
-		NetworkBuffer *dimension_names,
+		NetworkBuffer *dimensions,
 		NetworkBuffer *registry_codec,
 		NetworkBuffer *spawn_dimension_name,
 		NetworkBuffer *spawn_dimension_type,

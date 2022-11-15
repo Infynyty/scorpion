@@ -212,6 +212,9 @@ void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length)
     int received_bytes = 0;
     while (1) {
         int response = receive_wrapper(socket, bytes, (int) length - received_bytes);
+        if (response == -1) {
+            break;
+        }
         received_bytes += response;
         buffer_write_bytes(buffer, bytes, received_bytes);
         if (received_bytes == length) {

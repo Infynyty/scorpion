@@ -99,7 +99,7 @@ int main() {
 	packet_send(&handshakePacket->_header, socket_wrapper);
 	packet_free(&handshakePacket->_header);
 
-	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), true);
+	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), false, false);
 	packet_send(&loginStartPacket->_header, socket_wrapper);
 	packet_free(&loginStartPacket->_header);
 
