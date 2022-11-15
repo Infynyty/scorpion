@@ -213,45 +213,23 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
                         break;
                     }
                     case CHANGE_DIFFICULTY_ID: {
-                        Difficulty difficulty = buffer_receive_uint8_t(socket);
-                        bool difficulty_locked = buffer_receive_uint8_t(socket);
-
-                        ChangeDifficultyPacket *packet = change_difficulty_packet_new(difficulty, difficulty_locked);
-
+                        ChangeDifficultyPacket *packet = change_difficulty_packet_new(0, NULL);
+                        packet_receive(&packet->_header);
+                        cmc_log(INFO, "Set initial difficulty to: %d.", packet->difficulty);
                         packet_event(CHANGE_DIFFICULTY_PKT, &packet->_header);
                         break;
                     }
                     case PLAYER_ABILITIES_CB_ID: {
-                        uint8_t flags = buffer_receive_uint8_t(socket);
-                        float flying_speed = buffer_receive_float(socket);
-                        float fov_modifier = buffer_receive_float(socket);
-
-                        PlayerAbilitiesCBPacket *packet = player_abilities_cb_packet_new(flags, flying_speed,
-                                                                                         fov_modifier);
-
+                        PlayerAbilitiesCBPacket *packet = player_abilities_cb_packet_new(0, 0, 0);
+                        packet_receive(&packet->_header);
                         packet_event(PLAYER_ABILITIES_CB_PKT, &packet->_header);
                         break;
                     }
                     case SYNCHRONIZE_PLAYER_POSITION_ID: {
-                        double x = buffer_receive_double(socket);
-                        double y = buffer_receive_double(socket);
-                        double z = buffer_receive_double(socket);
-                        float yaw = buffer_receive_float(socket);
-                        float pitch = buffer_receive_float(socket);
-                        uint8_t flags = buffer_receive_uint8_t(socket);
-                        MCVarInt *teleport_id = writeVarInt(varint_receive(socket));
-                        bool dismount_vehicle = buffer_receive_uint8_t(socket);
-
                         SynchronizePlayerPositionPacket *packet = synchronize_player_position_packet_new(
-                                x,
-                                y,
-                                z,
-                                yaw,
-                                pitch,
-                                flags,
-                                teleport_id,
-                                dismount_vehicle
+                                0, 0, 0, 0, 0, 0, NULL, NULL
                         );
+                        packet_receive(&packet->_header);
                         packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet->_header);
                         break;
                     }

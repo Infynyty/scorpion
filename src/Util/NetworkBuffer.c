@@ -62,6 +62,7 @@ void buffer_swap_endianness(NetworkBuffer *buffer) {
 void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
 	swap_endianness(bytes, length_in_bytes);
 	buffer_write_bytes(buffer, bytes, length_in_bytes);
+    swap_endianness(bytes, length_in_bytes);
 }
 
 void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
