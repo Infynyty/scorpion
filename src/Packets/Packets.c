@@ -106,9 +106,9 @@ void packet_free(PacketHeader *packet) {
 			}
 			case PKT_ARRAY:
 			case PKT_BYTEARRAY:
-            case PKT_STRING_ARRAY:
+			case PKT_STRING_ARRAY:
 			case PKT_UUID:
-            case PKT_NBTTAG:
+			case PKT_NBTTAG:
 			case PKT_STRING: {
 				NetworkBuffer **string = (NetworkBuffer **) ptr;
 				buffer_free(*string);
@@ -219,16 +219,16 @@ void packet_receive(PacketHeader *header) {
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
-            case PKT_STRING_ARRAY: {
-                NetworkBuffer *strings = buffer_new();
-                uint32_t length = varint_receive(get_socket());
-                for (int j = 0; j < length; ++j) {
-                    buffer_receive_string(strings, get_socket());
-                }
-                variable_pointer = &strings;
-                variable_size = sizeof(NetworkBuffer *);
-                break;
-            }
+			case PKT_STRING_ARRAY: {
+				NetworkBuffer *strings = buffer_new();
+				uint32_t length = varint_receive(get_socket());
+				for (int j = 0; j < length; ++j) {
+					buffer_receive_string(strings, get_socket());
+				}
+				variable_pointer = &strings;
+				variable_size = sizeof(NetworkBuffer *);
+				break;
+			}
 			case PKT_STRING: {
 				NetworkBuffer *string = buffer_new();
 				buffer_receive_string(string, get_socket());
@@ -236,13 +236,13 @@ void packet_receive(PacketHeader *header) {
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
-            case PKT_NBTTAG: {
-                NetworkBuffer *nbt = buffer_new();
-                consume_nbt_data(get_socket());
-                variable_pointer = &nbt;
-                variable_size = sizeof(NetworkBuffer *);
-                break;
-            }
+			case PKT_NBTTAG: {
+				NetworkBuffer *nbt = buffer_new();
+				consume_nbt_data(get_socket());
+				variable_pointer = &nbt;
+				variable_size = sizeof(NetworkBuffer *);
+				break;
+			}
 			case PKT_CHAT:
 			case PKT_IDENTIFIER:
 			case PKT_VARLONG:
@@ -297,7 +297,7 @@ StatusRequestPacket *status_request_packet_new() {
 	StatusRequestPacket *packet = malloc(sizeof(StatusRequestPacket));
 	uint8_t types_length = 0;
 	PacketField *types = NULL;
-    bool **optionals = calloc(types_length, sizeof(bool *));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	MCVarInt *packet_id = writeVarInt(0);
 	PacketHeader wrapper = {
 			.member_types = types,
@@ -318,7 +318,7 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	PacketField typeArray[] = {
 			PKT_STRING
 	};
-    bool **optionals = calloc(types_length, sizeof(bool *));
+	bool **optionals = calloc(types_length, sizeof(bool *));
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	MCVarInt *packet_id = writeVarInt(0x00);
 	PacketHeader wrapper = {
@@ -354,9 +354,9 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_si
 		optionals[3] = &packet->has_sig_data;
 		optionals[4] = &packet->has_sig_data;
 	}
-    if (!has_player_uuid) {
-        optionals[6] = &packet->has_player_uuid;
-    }
+	if (!has_player_uuid) {
+		optionals[6] = &packet->has_player_uuid;
+	}
 	MCVarInt *packet_id = writeVarInt(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
@@ -373,6 +373,80 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_si
 	return packet;
 }
 
+EncryptionResponsePacket *encryption_response_packet_new(
+		NetworkBuffer *shared_secret,
+		bool has_verify_token,
+		NetworkBuffer *verify_token,
+		uint64_t salt,
+		NetworkBuffer *message_signature
+) {
+	EncryptionResponsePacket *packet = malloc(sizeof(EncryptionResponsePacket));
+	uint8_t types_length = 3;
+	PacketField *types = malloc(types_length * sizeof(PacketField));
+	PacketField typeArray[] = {
+			PKT_BYTEARRAY,
+			PKT_BOOL,
+			PKT_BYTEARRAY,
+			PKT_UINT64,
+			PKT_BYTEARRAY
+	};
+	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	bool **optionals = calloc(types_length, sizeof(bool *));
+
+	optionals[2] = &packet->has_verify_token;
+	optionals[3] = &packet->_has_no_verify_token;
+	optionals[4] = &packet->_has_no_verify_token;
+
+	MCVarInt *packet_id = writeVarInt(0x01);
+	PacketHeader wrapper = {
+			.member_types = types,
+			.members = types_length,
+			.optionals = optionals,
+			.direction = CLIENTBOUND,
+			.state = STATUS,
+			.packet_id = packet_id
+	};
+	packet->_header = wrapper;
+	packet->shared_secret = shared_secret;
+	packet->has_verify_token = has_verify_token;
+	packet->verify_token = verify_token;
+	packet->_has_no_verify_token = !has_verify_token;
+	packet->salt = salt;
+	packet->message_signature = message_signature;
+	return packet;
+}
+
+
+EncryptionRequestPacket *encryption_request_packet_new(
+		NetworkBuffer *server_id,
+		NetworkBuffer *public_key,
+		NetworkBuffer *verify_token
+) {
+	EncryptionRequestPacket *packet = malloc(sizeof(EncryptionRequestPacket));
+	uint8_t types_length = 3;
+	PacketField *types = malloc(types_length * sizeof(PacketField));
+	PacketField typeArray[] = {
+			PKT_STRING,
+			PKT_BYTEARRAY,
+			PKT_BYTEARRAY
+	};
+	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	bool **optionals = calloc(types_length, sizeof(bool *));
+	MCVarInt *packet_id = writeVarInt(0x01);
+	PacketHeader wrapper = {
+			.member_types = types,
+			.members = types_length,
+			.optionals = optionals,
+			.direction = CLIENTBOUND,
+			.state = STATUS,
+			.packet_id = packet_id
+	};
+	packet->_header = wrapper;
+	packet->server_id = server_id;
+	packet->public_key = public_key;
+	packet->verify_token = verify_token;
+	return packet;
+}
 
 // TODO: implement arrays
 LoginSuccessPacket *login_success_packet_new(

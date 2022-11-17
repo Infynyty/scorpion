@@ -95,7 +95,38 @@ typedef struct __attribute__((__packed__)) LoginStartPacket {
 
 LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_sig_data, bool has_player_uuid);
 
+typedef struct __attribute__((__packed__)) EncryptionResponsePacket {
+	PacketHeader _header;
+	NetworkBuffer *shared_secret;
+	bool has_verify_token;
+	NetworkBuffer *verify_token;
+	bool _has_no_verify_token;
+	uint64_t salt;
+	NetworkBuffer *message_signature;
+} EncryptionResponsePacket;
+
+EncryptionResponsePacket *encryption_response_packet_new(
+		NetworkBuffer *shared_secret,
+		bool has_verify_token,
+		NetworkBuffer *verify_token,
+		uint64_t salt,
+		NetworkBuffer *message_signature
+);
+
 /** Clientbound **/
+
+typedef struct __attribute__((__packed__)) EncryptionRequestPacket {
+	PacketHeader _header;
+	NetworkBuffer *server_id;
+	NetworkBuffer *public_key;
+	NetworkBuffer *verify_token;
+} EncryptionRequestPacket;
+
+EncryptionRequestPacket *encryption_request_packet_new(
+		NetworkBuffer *server_id,
+		NetworkBuffer *public_key,
+		NetworkBuffer *verify_token
+);
 
 typedef struct __attribute__((__packed__)) LoginSuccessPacket {
 	PacketHeader _header;

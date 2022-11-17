@@ -83,6 +83,11 @@ void handle_init_pos(void *packet) {
 
 }
 
+void handle_encryption(void *packet) {
+	EncryptionRequestPacket *encryption_pkt = packet;
+	cmc_log(INFO, "Server ID: %s", encryption_pkt->server_id->bytes);
+}
+
 int main() {
 
 	SocketWrapper *socket_wrapper = connect_wrapper();
@@ -109,6 +114,7 @@ int main() {
 	register_handler(&handle_login_success, LOGIN_SUCCESS_PKT);
 	register_handler(&handle_login_play, LOGIN_PLAY_PKT);
 	register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
+	register_handler(&handle_encryption, ENCRYPTION_REQUEST_PKT);
 
 	ClientState *clientState = client_state_new();
 	handle_packets(socket_wrapper, clientState);
