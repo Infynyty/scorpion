@@ -22,7 +22,7 @@ typedef struct SocketWrapper {
 
 SocketWrapper *connect_wrapper();
 
-const SocketWrapper *get_socket();
+SocketWrapper *get_socket();
 
 int receive_wrapper(SocketWrapper *socket, void *bytes, size_t size);
 

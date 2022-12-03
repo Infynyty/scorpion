@@ -5,6 +5,7 @@
 #include "Util/Logging/Logger.h"
 #include "SocketWrapper.h"
 #include "Packets/Packets.h"
+#include "zlib.h"
 
 void print_status_response(void *packet) {
 	StatusResponsePacket *response = packet;
@@ -115,6 +116,7 @@ int main() {
 	register_handler(&handle_login_play, LOGIN_PLAY_PKT);
 	register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
 	register_handler(&handle_encryption, ENCRYPTION_REQUEST_PKT);
+
 
 	ClientState *clientState = client_state_new();
 	handle_packets(socket_wrapper, clientState);

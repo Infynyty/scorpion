@@ -25,7 +25,7 @@ void buffer_free(NetworkBuffer *buffer) {
 }
 
 void buffer_write_bytes(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
-    if (length_in_bytes == 0) return;
+	if (length_in_bytes == 0) return;
 	if (buffer->byte_size + length_in_bytes >= MAX_BUFFER_SIZE) {
 		fprintf(stderr, "NetworkBuffer length (%d) too big!", buffer->byte_size + length_in_bytes);
 		free(buffer->bytes);
@@ -62,11 +62,37 @@ void buffer_swap_endianness(NetworkBuffer *buffer) {
 void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
 	swap_endianness(bytes, length_in_bytes);
 	buffer_write_bytes(buffer, bytes, length_in_bytes);
-    swap_endianness(bytes, length_in_bytes);
+	swap_endianness(bytes, length_in_bytes);
 }
 
 void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
 	buffer_write_bytes(buffer, bytes, length_in_bytes);
+}
+
+static void buffer_remove(NetworkBuffer *buffer, const size_t length) {
+	int32_t size_after_remove = (int32_t) (buffer->byte_size - length);
+	if (size_after_remove < 0) {
+		size_after_remove = 0;
+	}
+	//Resize array
+	char *temp = realloc(buffer->bytes + length, size_after_remove * sizeof(char));
+	if (temp == NULL) {
+		fprintf(stderr, "Reallocation failed!");
+		free(buffer->bytes);
+		exit(EXIT_FAILURE);
+	} else {
+		buffer->bytes = temp;
+	}
+	buffer->byte_size = size_after_remove;
+}
+
+void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
+	if (length > buffer->byte_size) {
+		cmc_log(ERR, "Tried polling %d bytes of a buffer with size %d", length, buffer->byte_size);
+		exit(EXIT_FAILURE);
+	}
+	memmove(dest, buffer->bytes, length);
+	buffer_remove(buffer, length);
 }
 
 void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket) {
@@ -76,7 +102,7 @@ void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket) {
 	buffer_write_little_endian(packet_size_bytes, packet_size_varint->bytes, packet_size_varint->length);
 	send_wrapper(socket, packet_size_varint->bytes, packet_size_varint->length);
 	buffer_free(packet_size_bytes);
-    free(packet_size_varint);
+	free(packet_size_varint);
 	send_wrapper(socket, buffer->bytes, buffer->byte_size);
 }
 
@@ -84,9 +110,9 @@ void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket) {
 
 
 NetworkBuffer *string_buffer_new(char *string) {
-    NetworkBuffer *buffer = buffer_new();
-    buffer_write_little_endian(buffer, string, strlen(string));
-    return buffer;
+	NetworkBuffer *buffer = buffer_new();
+	buffer_write_little_endian(buffer, string, strlen(string));
+	return buffer;
 }
 
 void buffer_receive_string(NetworkBuffer *buffer, SocketWrapper *socket) {
@@ -100,126 +126,36 @@ void buffer_print_string(NetworkBuffer *buffer) {
 	printf("%s", buffer->bytes);
 }
 
-// Integers
-
-int8_t buffer_receive_int8_t(SocketWrapper *socket) {
-    NetworkBuffer *buffer = buffer_new();
-    buffer_receive(buffer, socket, sizeof(char));
-    int8_t result = 0;
-    result += (int8_t) *buffer->bytes;
-    buffer_free(buffer);
-    return result;
-}
-
-uint8_t buffer_receive_uint8_t(SocketWrapper *socket) {
-	NetworkBuffer *buffer = buffer_new();
-	buffer_receive(buffer, socket, sizeof(char));
-	uint8_t result = 0;
-	result += *buffer->bytes;
-	buffer_free(buffer);
-	return result;
-}
-
-uint16_t buffer_receive_uint16_t(SocketWrapper *socket) {
-	NetworkBuffer *buffer = buffer_new();
-	buffer_receive(buffer, socket, sizeof(uint16_t));
-	uint16_t result = 0;
-	for (int i = 0; i < sizeof(uint16_t); ++i) {
-		result += buffer->bytes[i] << 8 * (sizeof(uint16_t) - i - 1);
+int32_t buffer_read_varint(NetworkBuffer *buffer) {
+	unsigned char current_byte = 0;
+	int result = 0;
+	const int CONTINUE_BIT = 0b10000000;
+	const int SEGMENT_BITS = 0b01111111;
+	for (int i = 0; i < 5; ++i) {
+		current_byte = buffer_read(uint8_t, buffer);
+		result += (current_byte & SEGMENT_BITS) << (8 * i - i);
+		if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
+			break;
+		}
 	}
-	buffer_free(buffer);
 	return result;
 }
 
-int16_t buffer_receive_int16_t(SocketWrapper *socket) {
-    NetworkBuffer *buffer = buffer_new();
-    buffer_receive(buffer, socket, sizeof(int16_t));
-    int16_t result = 0;
-    for (int i = 0; i < sizeof(int16_t); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(int16_t) - i - 1);
-    }
-    buffer_free(buffer);
-    return result;
-}
-
-int32_t buffer_receive_int32_t(SocketWrapper *socket) {
-    NetworkBuffer *buffer = buffer_new();
-    buffer_receive(buffer, socket, sizeof(int32_t));
-    int32_t result = 0;
-    for (int i = 0; i < sizeof(int32_t); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(int32_t) - i - 1);
-    }
-    buffer_free(buffer);
-    return result;
-}
-
-uint32_t buffer_receive_uint32_t(SocketWrapper *socket) {
-	NetworkBuffer *buffer = buffer_new();
-	buffer_receive(buffer, socket, sizeof(uint32_t));
-	uint32_t result = 0;
-    for (int i = 0; i < sizeof(uint32_t); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(uint32_t) - i - 1);
-    }
-	buffer_free(buffer);
-	return result;
-}
-
-uint64_t buffer_receive_uint64_t(SocketWrapper *socket) {
-	NetworkBuffer *buffer = buffer_new();
-	buffer_receive(buffer, socket, sizeof(uint64_t));
-	uint64_t result = 0;
-    for (int i = 0; i < sizeof(uint64_t); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(uint64_t) - i - 1);
-    }
-	buffer_free(buffer);
-	return result;
-}
-
-int64_t buffer_receive_int64_t(SocketWrapper *socket) {
-    NetworkBuffer *buffer = buffer_new();
-    buffer_receive(buffer, socket, sizeof(int64_t));
-    int64_t result = 0;
-    for (int i = 0; i < sizeof(int64_t); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(int64_t) - i - 1);
-    }
-    buffer_free(buffer);
-    return result;
-}
-
-// floating point numbers
-
-float buffer_receive_float(SocketWrapper *socket) {
-	NetworkBuffer *buffer = buffer_new();
-	buffer_receive(buffer, socket, sizeof(float));
-	buffer_swap_endianness(buffer);
-	float result = 0;
-    memcpy(&result, buffer->bytes, sizeof(float ));
-	buffer_free(buffer);
-	return result;
-}
-
-double buffer_receive_double(SocketWrapper *socket) {
-	NetworkBuffer *buffer = buffer_new();
-	buffer_receive(buffer, socket, sizeof(double));
-	buffer_swap_endianness(buffer);
-	double result = 0;
-    memcpy(&result, buffer->bytes, sizeof(double));
-	buffer_free(buffer);
-	return result;
-}
+static int32_t compression_threshold;
+static bool compression_enabled;
 
 void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length) {
 	char bytes[length];
-    int received_bytes = 0;
-    while (1) {
-        int response = receive_wrapper(socket, bytes, (int) length - received_bytes);
-        if (response == -1) {
-            break;
-        }
-        received_bytes += response;
-        buffer_write_bytes(buffer, bytes, received_bytes);
-        if (received_bytes == length) {
-            break;
-        }
-    }
+	int received_bytes = 0;
+	while (1) {
+		int response = receive_wrapper(socket, bytes, (int) length - received_bytes);
+		if (response == -1) {
+			break;
+		}
+		received_bytes += response;
+		buffer_write_bytes(buffer, bytes, received_bytes);
+		if (received_bytes == length) {
+			break;
+		}
+	}
 }

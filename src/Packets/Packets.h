@@ -18,6 +18,15 @@ typedef enum PacketField {
 	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY
 } PacketField;
 
+typedef struct GenericPacket {
+	bool is_compressed;
+	uint8_t compressed_length;
+	uint8_t uncompressed_length;
+	uint8_t compressed_packet_id;
+	uint8_t packet_id;
+	NetworkBuffer *data;
+} GenericPacket;
+
 typedef struct {
 	uint8_t members;
 	PacketField *member_types;
@@ -29,9 +38,13 @@ typedef struct {
 
 void packet_send(PacketHeader *packet, SocketWrapper *socket);
 
-void packet_receive(PacketHeader *header);
+GenericPacket *packet_receive();
+
+void packet_decode(PacketHeader *header, NetworkBuffer *packet);
 
 void packet_free(PacketHeader *packet);
+
+void set_compression(bool is_enabled);
 
 /** State: Handshake **/
 
@@ -127,6 +140,12 @@ EncryptionRequestPacket *encryption_request_packet_new(
 		NetworkBuffer *public_key,
 		NetworkBuffer *verify_token
 );
+
+typedef struct __attribute__((__packed__)) SetCompressionPacket {
+	PacketHeader _header;
+	MCVarInt *threshold;
+} SetCompressionPacket;
+
 
 typedef struct __attribute__((__packed__)) LoginSuccessPacket {
 	PacketHeader _header;

@@ -42,6 +42,10 @@ add_executable(scorpion
         src/Util/SocketWrapper.h
         src/scorpion.c)
 
+find_package(ZLIB)
+
+target_link_libraries(scorpion ZLIB::ZLIB)
+
 if (WIN32)
     target_link_libraries(scorpion wsock32 ws2_32)
 endif ()

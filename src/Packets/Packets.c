@@ -4,6 +4,7 @@
 #include "NetworkBuffer.h"
 #include "Logger.h"
 #include "NBTParser.h"
+#include "zlib.h"
 
 
 uint8_t get_types_size(PacketField type) {
@@ -149,7 +150,7 @@ void packet_free(PacketHeader *packet) {
 	free(packet);
 }
 
-void packet_receive(PacketHeader *header) {
+void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 	void *ptr = header + 1;
 	for (int i = 0; i < header->members; ++i) {
 		PacketField field = header->member_types[i];
@@ -163,43 +164,43 @@ void packet_receive(PacketHeader *header) {
 			case PKT_BOOL:
 			case PKT_BYTE:
 			case PKT_UINT8: {
-				uint8_t uint8 = buffer_receive_uint8_t(get_socket());
+				uint8_t uint8 = buffer_read(uint8_t, packet);
 				variable_pointer = &uint8;
 				variable_size = sizeof(uint8_t);
 				break;
 			}
 			case PKT_UINT16: {
-				uint16_t uint16 = buffer_receive_int16_t(get_socket());
+				uint16_t uint16 = buffer_read(uint16_t, packet);
 				variable_pointer = &uint16;
 				variable_size = sizeof(uint16_t);
 				break;
 			}
 			case PKT_UINT32: {
-				uint32_t uint32 = buffer_receive_uint32_t(get_socket());
+				uint32_t uint32 = buffer_read(uint32_t, packet);
 				variable_pointer = &uint32;
 				variable_size = sizeof(uint32_t);
 				break;
 			}
 			case PKT_UINT64: {
-				uint64_t uint64 = buffer_receive_uint64_t(get_socket());
+				uint64_t uint64 = buffer_read(uint64_t, packet);
 				variable_pointer = &uint64;
 				variable_size = sizeof(uint64_t);
 				break;
 			}
 			case PKT_FLOAT: {
-				float number = buffer_receive_float(get_socket());
+				float number = buffer_read(float, packet);
 				variable_pointer = &number;
 				variable_size = sizeof(float);
 				break;
 			}
 			case PKT_DOUBLE: {
-				double number = buffer_receive_double(get_socket());
+				double number = buffer_read(double, packet);
 				variable_pointer = &number;
 				variable_size = sizeof(double);
 				break;
 			}
 			case PKT_VARINT: {
-				MCVarInt *var_int = writeVarInt(varint_receive(get_socket()));
+				MCVarInt *var_int = writeVarInt(buffer_read_varint(packet));
 				variable_pointer = &var_int;
 				variable_size = sizeof(MCVarInt *);
 				break;
@@ -258,6 +259,62 @@ void packet_receive(PacketHeader *header) {
 		memcpy(ptr, variable_pointer, variable_size);
 		ptr += variable_size;
 	}
+}
+
+static bool compression_enabled = false;
+
+void set_compression(bool is_enabled) {
+	compression_enabled = is_enabled;
+}
+
+GenericPacket *packet_receive() {
+	GenericPacket *packet = malloc(sizeof(GenericPacket));
+	if (!compression_enabled) {
+		uint32_t length = varint_receive(get_socket());
+		uint32_t packet_id = varint_receive(get_socket());
+		NetworkBuffer *data = buffer_new();
+		buffer_receive(data, get_socket(), length - 1);
+
+		packet->is_compressed = false;
+		packet->uncompressed_length = length;
+		packet->packet_id = packet_id;
+		packet->data = data;
+	} else {
+		int32_t compressed_length = varint_receive(get_socket());
+		int32_t uncompressed_length = varint_receive(get_socket());
+		NetworkBuffer *compressed_data = buffer_new();
+		buffer_receive(compressed_data, get_socket(), compressed_length);
+
+		if (uncompressed_length != 0) {
+			char uncompressed_data_temp[uncompressed_length];
+			uncompress((Bytef *) uncompressed_data_temp,
+			           (uLongf *) &uncompressed_length,
+			           (Bytef *) compressed_data->bytes,
+			           (uLong) &compressed_length);
+			NetworkBuffer *uncompressed_data = buffer_new();
+			buffer_write_little_endian(
+					uncompressed_data,
+					uncompressed_data_temp,
+					uncompressed_length
+			);
+			uint32_t packet_id = buffer_read_varint(uncompressed_data);
+
+			packet->is_compressed = true;
+			packet->compressed_length = compressed_length;
+			packet->uncompressed_length = uncompressed_length - 1;
+			packet->packet_id = packet_id;
+			packet->data = uncompressed_data;
+		} else {
+			uint32_t packet_id = buffer_read_varint(compressed_data);
+
+			packet->is_compressed = false;
+			packet->compressed_length = -1;
+			packet->uncompressed_length = compressed_length - 1;
+			packet->packet_id = packet_id;
+			packet->data = compressed_data;
+		}
+	}
+	return packet;
 }
 
 //TODO: Two constructors for every packet:

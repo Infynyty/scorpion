@@ -12,11 +12,11 @@
 #include "VarInt/MCVarInt.h"
 
 /**
- * A network buffer struct contains an array of chars (referred to as bytes), a size_t containing the length of the array and a char
- * pointer pointing to the current byte of the byte array.
+ * A network buffer struct contains an array of chars (referred to as bytes) and a size_t containing the length
+ * of the array.
  */
 typedef struct NetworkBuffer {
-	char *bytes;
+	uint8_t *bytes;
 	size_t byte_size;
 } NetworkBuffer;
 
@@ -25,6 +25,26 @@ typedef struct NetworkBuffer {
  * @return A pointer to the new network buffer.
  */
 NetworkBuffer *buffer_new();
+
+void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest);
+
+#define buffer_read(type, _buffer) ({    \
+        type _result = 0;                             \
+        buffer_poll(_buffer, sizeof(type), &_result); \
+        _result;                                   \
+    })
+
+#define buffer_receive_type(type) ({ \
+        NetworkBuffer *_buffer = buffer_new();                             \
+        type _result = 0;                                     \
+        buffer_receive(_buffer, get_socket(), sizeof(type));               \
+        buffer_swap_endianness(_buffer);                                    \
+        memmove(&_result, _buffer->bytes, sizeof(type));\
+        buffer_free(_buffer);         \
+        _result;                             \
+})
+
+void buffer_swap_endianness(NetworkBuffer *buffer);
 
 NetworkBuffer *string_buffer_new(char *string);
 
@@ -83,20 +103,7 @@ void buffer_print_string(NetworkBuffer *buffer);
  */
 void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length);
 
-int8_t buffer_receive_int8_t(SocketWrapper *socket);
-uint8_t buffer_receive_uint8_t(SocketWrapper *socket);
-
-uint16_t buffer_receive_uint16_t(SocketWrapper *socket);
-int16_t buffer_receive_int16_t(SocketWrapper *socket);
-int32_t buffer_receive_int32_t(SocketWrapper *socket);
-uint32_t buffer_receive_uint32_t(SocketWrapper *socket);
-uint64_t buffer_receive_uint64_t(SocketWrapper *socket);
-int64_t buffer_receive_int64_t(SocketWrapper *socket);
-
-
-float buffer_receive_float(SocketWrapper *socket);
-
-double buffer_receive_double(SocketWrapper *socket);
+int32_t buffer_read_varint(NetworkBuffer *buffer);
 
 
 #endif //CMC_NETWORKBUFFER_H
