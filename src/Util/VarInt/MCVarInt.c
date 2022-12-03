@@ -57,7 +57,7 @@ void bitarray_to_bytearray(const bool *array, uint8_t *byteArray) {
 	}
 }
 
-MCVarInt *writeVarInt(unsigned int givenInt) {
+MCVarInt *varint_new(unsigned int givenInt) {
 	MCVarInt *varInt = malloc(sizeof *varInt);
 	bool array[40] = {0};
 	write_int_to_bit_array(givenInt, array);
@@ -70,13 +70,12 @@ MCVarInt *writeVarInt(unsigned int givenInt) {
 
 	bitarray_to_bytearray(array, byteArray);
 	varInt->length = byte_array_size;
-	//TODO: fix
 	memcpy(varInt->bytes, byteArray, 5);
 	return varInt;
 }
 
 int varint_receive(SocketWrapper *socket) {
-	unsigned char current_byte = 0;
+	uint8_t current_byte = 0;
 	int result = 0;
 	const int CONTINUE_BIT = 0b10000000;
 	const int SEGMENT_BITS = 0b01111111;

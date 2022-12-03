@@ -5,18 +5,18 @@
 #ifndef CMC_LOGGER_H
 #define CMC_LOGGER_H
 
-typedef enum CMC_LOG_LEVEL {
+typedef enum SCLogLevel {
 	DEBUG,
 	INFO,
 	WARN,
 	ERR
-} CMC_LOG_LEVEL;
+} SCLogLevel;
 
-static inline char *stringFromLevel(enum CMC_LOG_LEVEL level) {
+static inline char *stringFromLevel(SCLogLevel level) {
 	static char *strings[] = {"DEBUG", "INFO", "WARN", "ERR"};
 	return strings[level];
 }
 
-void cmc_log(enum CMC_LOG_LEVEL level, const char *message, ...);
+void cmc_log(SCLogLevel level, const char *message, ...);
 
 #endif //CMC_LOGGER_H

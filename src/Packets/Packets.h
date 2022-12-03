@@ -15,7 +15,7 @@ typedef enum PacketField {
 	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_FLOAT,
 	PKT_DOUBLE, PKT_STRING, PKT_CHAT, PKT_IDENTIFIER, PKT_VARINT, PKT_VARLONG,
 	PKT_ENTITYMETA, PKT_SLOT, PKT_NBTTAG, PKT_OPTIONAL, PKT_ARRAY, PKT_ENUM,
-	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY
+	PKT_BYTEARRAY, PKT_BITARRAY, PKT_UUID, PKT_STRING_ARRAY, PKT_PREV_MESS_ARRAY
 } PacketField;
 
 typedef struct {
@@ -343,6 +343,61 @@ typedef struct __attribute__((__packed__)) PlayerAbilitiesCBPacket {
 } PlayerAbilitiesCBPacket;
 
 PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float flying_speed, float fov_modifier);
+
+typedef enum ChatMessageFilterType {
+    PASS_THROUGH = 0, FULLY_FILTERED = 1, PARTIALLY_FILTERED = 2
+} ChatMessageFilterType;
+
+typedef struct __attribute__((__packed__)) PlayerChatMessagePacket {
+    PacketHeader *_header;
+    bool has_message_signature;
+    NetworkBuffer *message_signature;
+    NetworkBuffer *uuid;
+    NetworkBuffer *header_signature;
+    NetworkBuffer *plain_message;
+    bool has_formatting;
+    NetworkBuffer *formatting;
+    uint64_t timestamp;
+    uint64_t salt;
+
+    MCVarInt *previous_messages_length;
+    NetworkBuffer **previous_sender_uuids;
+    NetworkBuffer **previous_signatures;
+
+    bool has_unsigned_content;
+    NetworkBuffer *unsigned_content;
+    MCVarInt *filter_type;
+    NetworkBuffer *filter_mask;
+    MCVarInt *chat_type;
+    NetworkBuffer *network_name;
+    bool has_network_target_name;
+    NetworkBuffer *network_target_name;
+} PlayerChatMessagePacket;
+
+PlayerChatMessagePacket *player_chat_message_packet_new(
+//        bool has_message_signature,
+//        NetworkBuffer *message_signature,
+//        NetworkBuffer *uuid,
+//        NetworkBuffer *header_signature,
+//        NetworkBuffer *plain_message,
+//        bool has_formatting,
+//        NetworkBuffer *formatting,
+//        uint64_t timestamp,
+//        uint64_t salt,
+//
+//        MCVarInt *previous_messages_length,
+//        NetworkBuffer **previous_sender_uuids,
+//        NetworkBuffer **previous_signatures,
+//
+//        bool has_unsigned_content,
+//        NetworkBuffer *unsigned_content,
+//        MCVarInt *filter_type,
+//        NetworkBuffer *filter_mask,
+//        MCVarInt *chat_type,
+//        NetworkBuffer *network_name,
+//        bool has_network_target_name,
+//        NetworkBuffer *network_target_name
+        );
 
 #endif //CMC_PACKETS_H
 

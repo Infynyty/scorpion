@@ -26,14 +26,14 @@ void handle_login_play(void *packet) {
 	cmc_log(INFO, "Logged in with gamemode %d.", play->gamemode);
 
 	ClientInformationPacket *cip = client_info_packet_new(
-			string_buffer_new("de_DE"),
-			5,
-			writeVarInt(ENABLED),
-			true,
-			0,
-			writeVarInt(MAINHAND_RIGHT),
-			false,
-			true
+            string_buffer_new("de_DE"),
+            5,
+            varint_new(ENABLED),
+            true,
+            0,
+            varint_new(MAINHAND_RIGHT),
+            false,
+            true
 	);
 	packet_send(&cip->_header, get_socket());
 	packet_free(&cip->_header);
@@ -41,7 +41,7 @@ void handle_login_play(void *packet) {
 
 void handle_init_pos(void *packet) {
 	SynchronizePlayerPositionPacket *sync = packet;
-	MCVarInt *teleport_id = writeVarInt(varint_decode(sync->teleport_id));
+	MCVarInt *teleport_id = varint_new(varint_decode(sync->teleport_id));
 	ConfirmTeleportationPacket *confirmation = confirm_teleportation_packet_new(teleport_id);
 	packet_send(&confirmation->_header, get_socket());
 	packet_free(&confirmation->_header);
@@ -59,7 +59,7 @@ void handle_init_pos(void *packet) {
 	packet_free(&ppr->_header);
 	cmc_log(INFO, "Sent position.");
 
-	ClientCommandPacket *cmd = client_command_packet_new(writeVarInt(CLIENT_ACTION_RESPAWN));
+	ClientCommandPacket *cmd = client_command_packet_new(varint_new(CLIENT_ACTION_RESPAWN));
 	packet_send(&cmd->_header, get_socket());
 	packet_free(&cmd->_header);
 
@@ -88,16 +88,18 @@ void handle_encryption(void *packet) {
 	cmc_log(INFO, "Server ID: %s", encryption_pkt->server_id->bytes);
 }
 
+void handle_chat_message(void *packet) {
+    PlayerChatMessagePacket *message = packet;
+    cmc_log(INFO, "Receive chat message: %s", message->plain_message->bytes);
+}
+
 int main() {
 
 	SocketWrapper *socket_wrapper = connect_wrapper();
 	cmc_log(INFO, "Connected succesfully!");
 
-	char address[] = "localhost";
-	NetworkBuffer *address_buf = buffer_new();
-	buffer_write(address_buf, address, strlen(address));
 	HandshakePacket *handshakePacket = handshake_pkt_new(
-			address_buf,
+            string_buffer_new("localhost"),
 			25565,
 			HANDSHAKE_LOGIN
 	);
@@ -115,6 +117,7 @@ int main() {
 	register_handler(&handle_login_play, LOGIN_PLAY_PKT);
 	register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
 	register_handler(&handle_encryption, ENCRYPTION_REQUEST_PKT);
+	register_handler(&handle_chat_message, PLAYER_CHAT_MESSAGE_PKT);
 
 	ClientState *clientState = client_state_new();
 	handle_packets(socket_wrapper, clientState);
@@ -122,7 +125,6 @@ int main() {
 
 	deregister_all_handlers();
 
-	// TODO: write exit function that frees the socket pointer and closes the socket
 	close(socket_wrapper->socket);
 	client_state_free(clientState);
 	free(socket_wrapper);

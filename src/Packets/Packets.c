@@ -60,7 +60,7 @@ void packet_send(PacketHeader *packet, SocketWrapper *socket) {
 				case PKT_UUID:
 				case PKT_STRING: {
 					NetworkBuffer *string = *((NetworkBuffer **) current_byte);
-					MCVarInt *length = writeVarInt(string->byte_size);
+					MCVarInt *length = varint_new(string->byte_size);
 					buffer_write_little_endian(buffer, length->bytes, length->length);
 					buffer_write_little_endian(buffer, string->bytes, string->byte_size);
 
@@ -116,6 +116,26 @@ void packet_free(PacketHeader *packet) {
 				ptr = string;
 				break;
 			}
+            case PKT_PREV_MESS_ARRAY: {
+                MCVarInt **length_varint = (MCVarInt **) ptr;
+                uint8_t length = varint_decode(get_bytes(*length_varint));
+                free(*length_varint);
+                length_varint++;
+                ptr = length_varint;
+
+                for (int j = 0; j < length; ++j) {
+                    NetworkBuffer **sender_uuid = (NetworkBuffer **) ptr;
+                    buffer_free(*sender_uuid);
+                    sender_uuid++;
+                    ptr = sender_uuid;
+
+                    NetworkBuffer **signature = (NetworkBuffer **) ptr;
+                    buffer_free(*signature);
+                    signature++;
+                    ptr = signature;
+                }
+                break;
+            }
 //            case PKT_ARRAY: {
 //                MCVarInt **varInt = (MCVarInt **) ptr;
 //                uint32_t length = varint_decode(get_bytes(*varInt));
@@ -150,12 +170,15 @@ void packet_free(PacketHeader *packet) {
 }
 
 void packet_receive(PacketHeader *header) {
-	void *ptr = header + 1;
+	void *ptr = &header + 1;
 	for (int i = 0; i < header->members; ++i) {
 		PacketField field = header->member_types[i];
 
 		bool *is_optional = header->optionals[i];
-		if (is_optional != NULL && *is_optional) continue;
+		if (is_optional != NULL && !*is_optional) {
+            ptr += sizeof(void *);
+            continue;
+        }
 
 		void *variable_pointer;
 		size_t variable_size;
@@ -199,7 +222,7 @@ void packet_receive(PacketHeader *header) {
 				break;
 			}
 			case PKT_VARINT: {
-				MCVarInt *var_int = writeVarInt(varint_receive(get_socket()));
+				MCVarInt *var_int = varint_new(varint_receive(get_socket()));
 				variable_pointer = &var_int;
 				variable_size = sizeof(MCVarInt *);
 				break;
@@ -243,6 +266,34 @@ void packet_receive(PacketHeader *header) {
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
+            case PKT_PREV_MESS_ARRAY: {
+                NetworkBuffer *test = buffer_new();
+//                uint8_t testNum = buffer_receive_uint8_t(get_socket());
+//                buffer_receive(test, get_socket(), 30);
+
+                uint8_t length = varint_receive(get_socket());
+                MCVarInt *length_varint = varint_new(length);
+                NetworkBuffer **uuids = malloc(length * sizeof(NetworkBuffer *));
+                NetworkBuffer **signatures = malloc(length * sizeof(NetworkBuffer *));
+
+                for (int j = 0; j < length; ++j) {
+                    NetworkBuffer *uuid = buffer_new();
+                    buffer_receive(uuid, get_socket(), 2 * sizeof(uint64_t));
+                    uuids[j] = uuid;
+
+                    NetworkBuffer *bytes = buffer_new();
+                    uint32_t byte_length = varint_receive(get_socket());
+                    buffer_receive(bytes, get_socket(), byte_length);
+                    signatures[j] = bytes;
+                }
+                memmove(ptr, &length_varint, sizeof(MCVarInt *));
+                ptr += sizeof(MCVarInt *);
+                memmove(ptr, &uuids, sizeof(NetworkBuffer **));
+                ptr += sizeof(NetworkBuffer **);
+                variable_pointer = signatures;
+                variable_size = sizeof(NetworkBuffer **);
+                break;
+            }
 			case PKT_CHAT:
 			case PKT_IDENTIFIER:
 			case PKT_VARLONG:
@@ -255,14 +306,22 @@ void packet_receive(PacketHeader *header) {
 				cmc_log(ERR, "Tried receiving unhandled packet field %d", field);
 				exit(EXIT_FAILURE);
 		}
-		memcpy(ptr, variable_pointer, variable_size);
+		memmove(ptr, variable_pointer, variable_size);
 		ptr += variable_size;
 	}
 }
 
-//TODO: Two constructors for every packet:
-// Empty: Used to receive a packet over the network. Optional elements? Optionals Array in packet header, where each optional
-// contains a bool ptr.
+PacketHeader *create_header(uint8_t no_of_fields, uint8_t packet_id) {
+    PacketField *fields = malloc(no_of_fields * sizeof(PacketField));
+    bool **optionals = calloc(no_of_fields, sizeof(bool *));
+    PacketHeader *header = malloc(sizeof(PacketHeader));
+    header->members = no_of_fields;
+    header->member_types = fields;
+    header->optionals = optionals;
+    header->direction = SERVERBOUND;
+    header->state = STATUS;
+    return header;
+}
 
 HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, HandshakeNextState state) {
 	HandshakePacket *packet = malloc(sizeof(HandshakePacket));
@@ -275,8 +334,8 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 			PKT_VARINT
 	};
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x00);
+	memmove(types, typeArray, types_length * sizeof(PacketField));
+	MCVarInt *packet_id = varint_new(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -286,10 +345,10 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 			.packet_id = packet_id
 	};
 	packet->_header = wrapper;
-	packet->protocol_version = writeVarInt(760);
+	packet->protocol_version = varint_new(760);
 	packet->address = address;
 	packet->port = port;
-	packet->next_state = writeVarInt(state);
+	packet->next_state = varint_new(state);
 	return packet;
 }
 
@@ -298,7 +357,7 @@ StatusRequestPacket *status_request_packet_new() {
 	uint8_t types_length = 0;
 	PacketField *types = NULL;
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0);
+	MCVarInt *packet_id = varint_new(0);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -319,8 +378,8 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 			PKT_STRING
 	};
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x00);
+	memmove(types, typeArray, types_length * sizeof(PacketField));
+	MCVarInt *packet_id = varint_new(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -347,7 +406,7 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_si
 			PKT_BOOL,
 			PKT_UUID
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
 	if (!has_sig_data) {
 		optionals[2] = &packet->has_sig_data;
@@ -357,7 +416,7 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_si
 	if (!has_player_uuid) {
 		optionals[6] = &packet->has_player_uuid;
 	}
-	MCVarInt *packet_id = writeVarInt(0x00);
+	MCVarInt *packet_id = varint_new(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -390,14 +449,14 @@ EncryptionResponsePacket *encryption_response_packet_new(
 			PKT_UINT64,
 			PKT_BYTEARRAY
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
 
 	optionals[2] = &packet->has_verify_token;
 	optionals[3] = &packet->_has_no_verify_token;
 	optionals[4] = &packet->_has_no_verify_token;
 
-	MCVarInt *packet_id = writeVarInt(0x01);
+	MCVarInt *packet_id = varint_new(0x01);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -430,9 +489,9 @@ EncryptionRequestPacket *encryption_request_packet_new(
 			PKT_BYTEARRAY,
 			PKT_BYTEARRAY
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x01);
+	MCVarInt *packet_id = varint_new(0x01);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -464,9 +523,9 @@ LoginSuccessPacket *login_success_packet_new(
 			PKT_VARINT,
 			PKT_BYTEARRAY
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x02);
+	MCVarInt *packet_id = varint_new(0x02);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -506,9 +565,9 @@ ClientInformationPacket *client_info_packet_new(
 			PKT_BOOL,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x08);
+	MCVarInt *packet_id = varint_new(0x08);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -548,9 +607,9 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
 			PKT_FLOAT,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x15);
+	MCVarInt *packet_id = varint_new(0x15);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -576,9 +635,9 @@ ClientCommandPacket *client_command_packet_new(MCVarInt *action) {
 	PacketField typeArray[] = {
 			PKT_VARINT
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x07);
+	MCVarInt *packet_id = varint_new(0x07);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -599,9 +658,9 @@ ConfirmTeleportationPacket *confirm_teleportation_packet_new(MCVarInt *teleport_
 	PacketField typeArray[] = {
 			PKT_VARINT
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x00);
+	MCVarInt *packet_id = varint_new(0x00);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -665,8 +724,8 @@ LoginPlayPacket *login_play_packet_new(
 		optionals[17] = &packet->has_death_location;
 		optionals[18] = &packet->has_death_location;
 	}
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x25);
+	memmove(types, typeArray, types_length * sizeof(PacketField));
+	MCVarInt *packet_id = varint_new(0x25);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -707,8 +766,8 @@ DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason) {
 			PKT_STRING
 	};
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x19);
+	memmove(types, typeArray, types_length * sizeof(PacketField));
+	MCVarInt *packet_id = varint_new(0x19);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -745,9 +804,9 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
 			PKT_VARINT,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x39);
+	MCVarInt *packet_id = varint_new(0x39);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -776,9 +835,9 @@ UpdateRecipesPacket *update_recipes_packet_new(MCVarInt *no_of_recipes, NetworkB
 			PKT_VARINT,
 			PKT_STRING
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x39);
+	MCVarInt *packet_id = varint_new(0x39);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -801,9 +860,9 @@ ChangeDifficultyPacket *change_difficulty_packet_new(uint8_t difficulty, bool di
 			PKT_UINT8,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x0b);
+	MCVarInt *packet_id = varint_new(0x0b);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -827,9 +886,9 @@ PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float fly
 			PKT_FLOAT,
 			PKT_FLOAT
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
+	memmove(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x31);
+	MCVarInt *packet_id = varint_new(0x31);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -843,4 +902,58 @@ PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float fly
 	packet->flying_speed = flying_speed;
 	packet->fov_modifier = fov_modifier;
 	return packet;
+}
+
+PlayerChatMessagePacket *player_chat_message_packet_new(
+//        bool has_message_signature,
+//        NetworkBuffer *message_signature,
+//        NetworkBuffer *uuid,
+//        NetworkBuffer *header_signature,
+//        NetworkBuffer *plain_message,
+//        bool has_formatting,
+//        NetworkBuffer *formatting,
+//        uint64_t timestamp,
+//        uint64_t salt,
+//
+//        MCVarInt *previous_messages_length,
+//        NetworkBuffer **previous_sender_uuids,
+//        NetworkBuffer **previous_signatures,
+//
+//        bool has_unsigned_content,
+//        NetworkBuffer *unsigned_content,
+//        MCVarInt *filter_type,
+//        NetworkBuffer *filter_mask,
+//        MCVarInt *chat_type,
+//        NetworkBuffer *network_name,
+//        bool has_network_target_name,
+//        NetworkBuffer *network_target_name
+) {
+    PlayerChatMessagePacket *packet_ptr = malloc(sizeof(PlayerChatMessagePacket));
+    PacketHeader *header = create_header(18, 0x33);
+    header->member_types = (PacketField []) {
+            PKT_BOOL,
+            PKT_BYTEARRAY,
+            PKT_UUID,
+            PKT_BYTEARRAY,
+            PKT_STRING,
+            PKT_BOOL,
+            PKT_STRING,
+            PKT_UINT64,
+            PKT_UINT64,
+            PKT_PREV_MESS_ARRAY,
+            PKT_BOOL,
+            PKT_STRING,
+            PKT_VARINT,
+            PKT_BITARRAY,
+            PKT_VARINT,
+            PKT_STRING,
+            PKT_BOOL,
+            PKT_STRING
+    };
+    header->optionals[1] = &packet_ptr->has_message_signature;
+    header->optionals[6] = &packet_ptr->has_formatting;
+    header->optionals[11] = &packet_ptr->has_unsigned_content;
+    header->optionals[17] = &packet_ptr->has_network_target_name;
+
+    packet_ptr->_header = header;
 }

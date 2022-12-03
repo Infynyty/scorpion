@@ -27,15 +27,11 @@
 #define SYNCHRONIZE_PLAYER_POSITION_ID  0x39
 #define DISCONNECT_PLAY                 0x19
 #define LOGIN_PLAY_ID                   0x25
+#define PLAYER_CHAT_MESSAGE_ID          0x33
 #define SET_HELD_ITEM_ID                0x4a
 #define UPDATE_RECIPES_ID               0x6a
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
-
-// TODO: Write event listener system
-
-// Linked List system: ll for every packet type, array of lls? (no of total packets: ?)
-// UUID for every packet != packet id
 
 
 
@@ -116,8 +112,6 @@ void packet_event(Packets packet_type, PacketHeader *packet) {
 	packet_free(packet);
 }
 
-
-//TODO: abstract method for packet receive using packet fields?
 void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 	Packets packet_type;
 	ConnectionState connectionState = LOGIN;
@@ -187,7 +181,7 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						}
 
 						LoginSuccessPacket *packet = login_success_packet_new(
-								uuid, username, writeVarInt(no_of_properties), properties_array
+                                uuid, username, varint_new(no_of_properties), properties_array
 						);
 //                        packet_receive(&packet->_header);
 						packet_event(LOGIN_SUCCESS_PKT, &packet->_header);
@@ -241,6 +235,14 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet->_header);
 						break;
 					}
+                    case PLAYER_CHAT_MESSAGE_ID: {
+                        PlayerChatMessagePacket *packet = player_chat_message_packet_new();
+//                        NetworkBuffer *test = buffer_new();
+//                        buffer_receive(test, get_socket(), 500);
+                        packet_receive(packet->_header);
+                        packet_event(PLAYER_CHAT_MESSAGE_PKT, packet->_header);
+                        break;
+                    }
 					case UPDATE_RECIPES_ID: {
 						cmc_log(DEBUG, "Recipes packet, length = %d", packet_length_total);
 //                        const char* CRAFTING_SHAPELESS = "crafting_shapeless";

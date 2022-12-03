@@ -16,7 +16,7 @@ typedef struct MCVarInt {
 
 unsigned char *readVarInt(int varInt);
 
-MCVarInt *writeVarInt(unsigned int givenInt);
+MCVarInt *varint_new(unsigned int givenInt);
 
 uint8_t *get_bytes(MCVarInt *varInt);
 

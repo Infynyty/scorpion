@@ -72,7 +72,7 @@ void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, const size_t
 void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket) {
 	// prefix packet with packet size as varint
 	NetworkBuffer *packet_size_bytes = buffer_new();
-	MCVarInt *packet_size_varint = writeVarInt(buffer->byte_size);
+	MCVarInt *packet_size_varint = varint_new(buffer->byte_size);
 	buffer_write_little_endian(packet_size_bytes, packet_size_varint->bytes, packet_size_varint->length);
 	send_wrapper(socket, packet_size_varint->bytes, packet_size_varint->length);
 	buffer_free(packet_size_bytes);
@@ -168,9 +168,8 @@ uint64_t buffer_receive_uint64_t(SocketWrapper *socket) {
 	NetworkBuffer *buffer = buffer_new();
 	buffer_receive(buffer, socket, sizeof(uint64_t));
 	uint64_t result = 0;
-    for (int i = 0; i < sizeof(uint64_t); ++i) {
-        result += buffer->bytes[i] << 8 * (sizeof(uint64_t) - i - 1);
-    }
+    buffer_swap_endianness(buffer);
+    memcpy(&result, buffer->bytes, sizeof(uint64_t));
 	buffer_free(buffer);
 	return result;
 }
