@@ -99,7 +99,7 @@ int main() {
 	HandshakePacket *handshakePacket = handshake_pkt_new(
 			address_buf,
 			25565,
-			HANDSHAKE_STATUS
+			HANDSHAKE_LOGIN
 	);
 	packet_send(&handshakePacket->_header);
 	packet_free(&handshakePacket->_header);
@@ -109,7 +109,7 @@ int main() {
 	uint64_t high = 0;
 	buffer_write(uuid, &low, sizeof(uint64_t));
 	buffer_write(uuid, &high, sizeof(uint64_t));
-	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), false, false, uuid);
+	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), false, true, uuid);
 	packet_send(&loginStartPacket->_header);
 	packet_free(&loginStartPacket->_header);
 

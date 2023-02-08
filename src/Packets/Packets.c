@@ -39,7 +39,11 @@ void packet_free(PacketHeader *packet) {
 	for (int i = 0; i < packet->members; ++i) {
 		PacketField m_type = packet->member_types[i];
 		bool *optional_present = packet->optionals[i];
-		if (optional_present != NULL && !*optional_present) continue;
+		if (optional_present != NULL && !*optional_present) {
+            ptr = (void *) ptr;
+            ptr += get_types_size(m_type);
+            continue;
+        }
 		switch (m_type) {
 			case PKT_BOOL:
 			case PKT_BYTE:
@@ -162,7 +166,11 @@ NetworkBuffer *packet_encode(PacketHeader *header) {
 					//TODO: Fill in
 					break;
 				case PKT_BYTEARRAY:
-				case PKT_UUID:
+				case PKT_UUID: {
+                    NetworkBuffer *uuid = *((NetworkBuffer **) current_byte);
+                    buffer_write_little_endian(buffer, uuid->bytes, uuid->size);
+                    break;
+                }
 				case PKT_STRING: {
 					NetworkBuffer *string = *((NetworkBuffer **) current_byte);
 					MCVarInt *length = varint_encode(string->size);
