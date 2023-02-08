@@ -5,7 +5,6 @@
 #include "Util/Logging/Logger.h"
 #include "SocketWrapper.h"
 #include "Packets/Packets.h"
-#include "zlib.h"
 
 void print_status_response(void *packet) {
 	StatusResponsePacket *response = packet;
@@ -27,24 +26,24 @@ void handle_login_play(void *packet) {
 	cmc_log(INFO, "Logged in with gamemode %d.", play->gamemode);
 
 	ClientInformationPacket *cip = client_info_packet_new(
-			string_buffer_new("de_DE"),
-			5,
-			writeVarInt(ENABLED),
-			true,
-			0,
-			writeVarInt(MAINHAND_RIGHT),
-			false,
-			true
+            string_buffer_new("de_DE"),
+            5,
+            varint_encode(ENABLED),
+            true,
+            0,
+            varint_encode(MAINHAND_RIGHT),
+            false,
+            true
 	);
-	packet_encode(&cip->_header, get_socket());
+	packet_send(&cip->_header);
 	packet_free(&cip->_header);
 }
 
 void handle_init_pos(void *packet) {
 	SynchronizePlayerPositionPacket *sync = packet;
-	MCVarInt *teleport_id = writeVarInt(varint_decode(sync->teleport_id));
+	MCVarInt *teleport_id = varint_encode(varint_decode(sync->teleport_id));
 	ConfirmTeleportationPacket *confirmation = confirm_teleportation_packet_new(teleport_id);
-	packet_encode(&confirmation->_header, get_socket());
+    packet_send(&confirmation->_header);
 	packet_free(&confirmation->_header);
 	cmc_log(INFO, "Confirmed teleportation.");
 
@@ -56,12 +55,12 @@ void handle_init_pos(void *packet) {
 			sync->pitch,
 			true
 	);
-	packet_encode(&ppr->_header, get_socket());
+	packet_send(&ppr->_header);
 	packet_free(&ppr->_header);
 	cmc_log(INFO, "Sent position.");
 
-	ClientCommandPacket *cmd = client_command_packet_new(writeVarInt(CLIENT_ACTION_RESPAWN));
-	packet_encode(&cmd->_header, get_socket());
+	ClientCommandPacket *cmd = client_command_packet_new(varint_encode(CLIENT_ACTION_RESPAWN));
+	packet_send(&cmd->_header);
 	packet_free(&cmd->_header);
 
 	double currentX = sync->y;
@@ -78,16 +77,16 @@ void handle_init_pos(void *packet) {
 	ppr_new->y = currentX;
 	cmc_log(DEBUG, "Position x: %lf", currentX);
 	cmc_log(DEBUG, "Sending packet x: %lf", currentX);
-	packet_encode(&ppr_new->_header, get_socket());
+	packet_send(&ppr_new->_header);
 	packet_free(&ppr_new->_header);
 //    }
 
 }
 
 void handle_encryption(void *packet) {
-	EncryptionRequestPacket *encryption_pkt = packet;
-	cmc_log(INFO, "Public key: %s", encryption_pkt->public_key->bytes);
+    cmc_log(INFO, "Encryption request received");
 }
+
 
 int main() {
 
@@ -100,9 +99,9 @@ int main() {
 	HandshakePacket *handshakePacket = handshake_pkt_new(
 			address_buf,
 			25565,
-			HANDSHAKE_LOGIN
+			HANDSHAKE_STATUS
 	);
-	packet_encode(&handshakePacket->_header, socket_wrapper);
+	packet_send(&handshakePacket->_header);
 	packet_free(&handshakePacket->_header);
 
 	NetworkBuffer *uuid = buffer_new();
@@ -111,8 +110,10 @@ int main() {
 	buffer_write(uuid, &low, sizeof(uint64_t));
 	buffer_write(uuid, &high, sizeof(uint64_t));
 	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), false, false, uuid);
-	packet_encode(&loginStartPacket->_header, socket_wrapper);
+	packet_send(&loginStartPacket->_header);
 	packet_free(&loginStartPacket->_header);
+
+    cmc_log(INFO, "Login start");
 
 
 	register_handler(&print_status_response, STATUS_RESPONSE_PKT);

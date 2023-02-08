@@ -44,7 +44,7 @@ typedef struct {
  * @param header The header of the packet struct that will be sent.
  *
  */
-void packet_send(const PacketHeader *header);
+void packet_send(PacketHeader *header);
 
 GenericPacket *packet_receive();
 
@@ -56,7 +56,7 @@ void set_compression(bool is_enabled);
 
 void set_compression_threshold(int32_t threshold);
 
-void set_encrpytion(bool is_enabled);
+void init_encryption(NetworkBuffer *shared_secret);
 
 /** State: Handshake **/
 

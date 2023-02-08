@@ -4,13 +4,14 @@
 
 #include <stdbool.h>
 #include "ServerState.h"
+#include "NetworkBuffer.h"
 
-struct ServerState {
-	int max_players;
-	int view_distance;
-	int simulation_distance;
-	bool reduced_debug_info;
-	bool enable_respawn_screen;
-	bool is_debug;
-	bool is_flat;
-};
+ServerState *serverstate_new() {
+    return malloc(sizeof(ServerState));
+}
+
+void serverstate_free(ServerState *state) {
+    free(state->public_key);
+    free(state->verify_token);
+    free(state);
+}

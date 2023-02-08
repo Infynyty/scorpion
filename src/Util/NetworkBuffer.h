@@ -12,12 +12,12 @@
 #include "VarInt/MCVarInt.h"
 
 /**
- * A network buffer struct contains an array of chars (referred to as bytes) and a size_t containing the length
+ * A network buffer struct contains an array of chars (referred to as bytes) and a size_t containing the size
  * of the array.
  */
 typedef struct NetworkBuffer {
 	uint8_t *bytes;
-	size_t byte_size;
+	size_t size;
 } NetworkBuffer;
 
 /**
@@ -68,7 +68,7 @@ void buffer_free(NetworkBuffer *buffer);
  * Writes bytes to a buffer <em>in big endian order</em>.
  * @param buffer The buffer to be written to.
  * @param bytes  The array of bytes to be written into the buffer.
- * @param length_in_bytes   The length of the byte array.
+ * @param length_in_bytes   The size of the byte array.
  *
  * @warning Swaps the byte order of the bytes that were input. Input bytes should therefore be in little endian order.
  */
@@ -79,7 +79,7 @@ void buffer_write(NetworkBuffer *buffer, void *bytes, size_t length_in_bytes);
  * because their bytes have to be sent in little endian order.
  * @param buffer The buffer to be written to.
  * @param bytes  The array of bytes to be written into the buffer.
- * @param length_in_bytes   The length of the byte array.
+ * @param length_in_bytes   The size of the byte array.
  */
 void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, size_t length_in_bytes);
 

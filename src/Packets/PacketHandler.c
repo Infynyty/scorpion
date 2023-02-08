@@ -7,6 +7,8 @@
 #include "Logging/Logger.h"
 #include "Packets.h"
 #include "NBTParser.h"
+#include "ServerState.h"
+#include "Encryption.h"
 
 
 // Connection status: STATUS
@@ -116,11 +118,14 @@ void packet_event(Packets packet_type, PacketHeader *packet) {
 	packet_free(packet);
 }
 
+static ServerState *serverState;
+
 
 //TODO: abstract method for packet receive using packet fields?
 void handle_packets(SocketWrapper *socket, ClientState *clientState) {
+    serverState = serverstate_new();
 	Packets packet_type;
-	ConnectionState connectionState = LOGIN;
+	ConnectionState connectionState = STATUS;
 
 	while (true) {
 		GenericPacket *generic_packet = packet_receive();
@@ -157,6 +162,20 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						cmc_log(INFO, "Received encryption request.");
 						EncryptionRequestPacket *packet = encryption_request_packet_new(NULL, NULL, NULL);
 						packet_decode(&packet->_header, generic_packet->data);
+
+                        serverState->public_key = packet->public_key;
+                        serverState->verify_token = packet->verify_token;
+
+                        NetworkBuffer *secret = buffer_new();
+                        EncryptionResponsePacket *response = encryption_response_generate(
+                                packet->public_key,
+                                packet->verify_token,
+                                secret
+                                );
+                        packet_send(&response->_header);
+                        init_encryption(secret);
+                        buffer_free(secret);
+
 						packet_event(ENCRYPTION_REQUEST_PKT, &packet->_header);
 						break;
 					}
@@ -186,7 +205,7 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						}
 
 						LoginSuccessPacket *packet = login_success_packet_new(
-								uuid, username, writeVarInt(no_of_properties), properties_array
+                                uuid, username, varint_encode(no_of_properties), properties_array
 						);
 //                        packet_decode(&packet->_header);
 						packet_event(LOGIN_SUCCESS_PKT, &packet->_header);
@@ -246,7 +265,7 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						break;
 					}
 					case UPDATE_RECIPES_ID: {
-						cmc_log(DEBUG, "Recipes packet, length = %d", generic_packet->uncompressed_length);
+						cmc_log(DEBUG, "Recipes packet, size = %d", generic_packet->uncompressed_length);
 //                        const char* CRAFTING_SHAPELESS = "crafting_shapeless";
 //                        const char* CRAFTING_SHAPED = "crafting_shaped";
 //                        const char* OVEN[] = {
@@ -289,5 +308,6 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 				return;
 		}
 	}
+    serverstate_free(serverState);
 }
 

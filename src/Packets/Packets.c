@@ -5,6 +5,9 @@
 #include "Logger.h"
 #include "NBTParser.h"
 #include "zlib.h"
+#include <openssl/ssl.h>
+#include <openssl/rsa.h>
+#include <openssl/rand.h>
 
 /** Utility **/
 
@@ -69,11 +72,11 @@ void packet_free(PacketHeader *packet) {
 			}
 //            case PKT_ARRAY: {
 //                MCVarInt **varInt = (MCVarInt **) ptr;
-//                uint32_t length = varint_decode(get_bytes(*varInt));
+//                uint32_t size = varint_decode(get_bytes(*varInt));
 //                free(*varInt);
 //                varInt++;
 //                ptr = varInt;
-//                for (int j = 0; j < length; ++j) {
+//                for (int j = 0; j < size; ++j) {
 //                    NetworkBuffer **string = (NetworkBuffer **) ptr;
 //                    buffer_free(*string);
 //                    string++;
@@ -113,16 +116,28 @@ void set_compression_threshold(int32_t threshold) {
 
 static bool encrpytion_enabled = false;
 
-void set_encrpytion(bool is_enabled) {
-	encrpytion_enabled = is_enabled;
+static EVP_CIPHER_CTX *ctx_encrypt;
+static EVP_CIPHER_CTX *ctx_decrypt;
+
+void init_encryption(NetworkBuffer *shared_secret) {
+    encrpytion_enabled = true;
+    ctx_encrypt = EVP_CIPHER_CTX_new();
+    ctx_decrypt = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX_init(ctx_encrypt);
+    EVP_CIPHER_CTX_init(ctx_decrypt);
+
+    EVP_EncryptInit_ex(ctx_encrypt, EVP_aes_128_cfb8(), NULL, shared_secret->bytes, shared_secret->bytes);
+    EVP_DecryptInit_ex(ctx_decrypt, EVP_aes_128_cfb8(), NULL, shared_secret->bytes, shared_secret->bytes);
 }
+
+/** / Utility **/
 
 /** Send **/
 
 NetworkBuffer *packet_encode(PacketHeader *header) {
 	NetworkBuffer *buffer = buffer_new();
 	void *current_byte = header + 1;
-	buffer_write_little_endian(buffer, header->packet_id->bytes, header->packet_id->length);
+	buffer_write_little_endian(buffer, header->packet_id->bytes, header->packet_id->size);
 	for (int i = 0; i < header->members; ++i) {
 		PacketField m_type = header->member_types[i];
 
@@ -140,7 +155,7 @@ NetworkBuffer *packet_encode(PacketHeader *header) {
 					break;
 				case PKT_VARINT: {
 					MCVarInt *varInt = (*(MCVarInt **) (current_byte));
-					buffer_write_little_endian(buffer, varInt->bytes, varInt->length);
+					buffer_write_little_endian(buffer, varInt->bytes, varInt->size);
 					break;
 				}
 				case PKT_VARLONG:
@@ -150,9 +165,9 @@ NetworkBuffer *packet_encode(PacketHeader *header) {
 				case PKT_UUID:
 				case PKT_STRING: {
 					NetworkBuffer *string = *((NetworkBuffer **) current_byte);
-					MCVarInt *length = writeVarInt(string->byte_size);
-					buffer_write_little_endian(buffer, length->bytes, length->length);
-					buffer_write_little_endian(buffer, string->bytes, string->byte_size);
+					MCVarInt *length = varint_encode(string->size);
+					buffer_write_little_endian(buffer, length->bytes, length->size);
+					buffer_write_little_endian(buffer, string->bytes, string->size);
 
 
 					free(length);
@@ -166,32 +181,60 @@ NetworkBuffer *packet_encode(PacketHeader *header) {
 		current_byte = (void *) current_byte;
 		current_byte += get_types_size(m_type);
 	}
-	NetworkBuffer *length_prefixed = buffer_new();
-	MCVarInt *packet_size = writeVarInt(buffer->byte_size);
-	buffer_write_little_endian(length_prefixed, packet_size->bytes, packet_size->length);
-	buffer_write(length_prefixed, buffer->bytes, buffer->byte_size);
-	free(packet_size);
-	return length_prefixed;
+	return buffer;
 }
 
-void packet_compress(NetworkBuffer *packet) {
+NetworkBuffer *packet_compress(NetworkBuffer *packet) {
+    NetworkBuffer *compressed = buffer_new();
+    if (packet->size > compression_threshold) {
+        MCVarInt *uncompressed_size = varint_encode(packet->size);
 
+        char *temp = malloc(packet->size);
+        uint64_t destLen = packet->size;
+        compress((Bytef *) temp, (uLongf *) &destLen, packet->bytes, packet->size);
+
+        MCVarInt *compressed_size = varint_encode(destLen);
+
+        buffer_write_little_endian(compressed, compressed_size->bytes, compressed_size->size);
+        buffer_write_little_endian(compressed, uncompressed_size->bytes, uncompressed_size->size);
+        buffer_write_little_endian(compressed, packet->bytes, packet->size);
+
+        free(temp);
+    } else {
+        MCVarInt *packet_length = varint_encode(packet->size);
+        uint8_t data_length = 0;
+        buffer_write_little_endian(compressed, packet_length->bytes, packet_length->size);
+        buffer_write_little_endian(compressed, &data_length, sizeof(uint8_t));
+        buffer_write_little_endian(compressed, packet->bytes, packet->size);
+    }
+    buffer_free(packet);
+    return compressed;
 }
 
-void packet_encrypt(NetworkBuffer *packet) {
-
+NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
+    NetworkBuffer *encrypted = buffer_new();
+    unsigned char temp[packet->size + EVP_CIPHER_block_size(EVP_aes_128_cfb8()) - 1];
+    int out_length;
+    if (!EVP_EncryptUpdate(ctx_encrypt, temp, &out_length, packet->bytes, packet->size)) {
+        cmc_log(ERR, "OpenSSL encryption error.");
+        exit(EXIT_FAILURE);
+    }
+    buffer_write_little_endian(encrypted, temp, out_length);
+    return encrypted;
 }
 
-void packet_send(const PacketHeader *header) {
+void packet_send(PacketHeader *header) {
 	NetworkBuffer *packet = packet_encode(header);
-	if (compression_enabled && packet->byte_size > compression_threshold) {
-		packet_compress(packet);
+	if (compression_enabled && compression_threshold > 0) {
+		packet = packet_compress(packet);
 	}
 	if (encrpytion_enabled) {
-		packet_encrypt(packet);
+		packet = packet_encrypt(packet);
 	}
-	send_wrapper(get_socket(), packet->bytes, packet->byte_size);
+	send_wrapper(get_socket(), packet->bytes, packet->size);
 }
+
+/** Receive **/
 
 void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 	void *ptr = header + 1;
@@ -243,7 +286,7 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 				break;
 			}
 			case PKT_VARINT: {
-				MCVarInt *var_int = writeVarInt(buffer_read_varint(packet));
+				MCVarInt *var_int = varint_encode(buffer_read_varint(packet));
 				variable_pointer = &var_int;
 				variable_size = sizeof(MCVarInt *);
 				break;
@@ -305,35 +348,66 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 	}
 }
 
-void packet_recv(PacketHeader *header) {
-	NetworkBuffer *input = buffer_new();
-	
+uint8_t receive_byte() {
+    unsigned char byte;
+    receive_wrapper(get_socket(), &byte, sizeof(byte));
+    if (encrpytion_enabled) {
+        int32_t outlen;
+        unsigned char out;
+        if (!EVP_DecryptUpdate(ctx_decrypt, &out, &outlen, &byte, sizeof(byte))) {
+            cmc_log(ERR, "OpenSSL decryption error");
+            exit(EXIT_FAILURE);
+        }
+        byte = out;
+    }
+    return byte;
+}
+
+NetworkBuffer *receive_bytes(uint64_t size) {
+    NetworkBuffer *bytes = buffer_new();
+    for (int i = 0; i < size; i++) {
+        uint8_t byte = receive_byte();
+        buffer_write_little_endian(bytes, &byte, sizeof(byte));
+    }
+    return bytes;
+}
+
+int32_t receive_varint() {
+    unsigned char current_byte;
+    int result = 0;
+    const int CONTINUE_BIT = 0b10000000;
+    const int SEGMENT_BITS = 0b01111111;
+    for (int i = 0; i < 5; ++i) {
+        current_byte = receive_byte();
+        result += (current_byte & SEGMENT_BITS) << (8 * i - i);
+        if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
+            break;
+        }
+    }
+    return result;
 }
 
 GenericPacket *packet_receive() {
 	GenericPacket *packet = malloc(sizeof(GenericPacket));
 	if (!compression_enabled) {
-		uint32_t length = varint_receive(get_socket());
-		uint32_t packet_id = varint_receive(get_socket());
-		NetworkBuffer *data = buffer_new();
-		buffer_receive(data, get_socket(), length - 1);
+		uint32_t length = receive_varint();
+		uint32_t packet_id = receive_varint();
 
 		packet->is_compressed = false;
 		packet->uncompressed_length = length;
 		packet->packet_id = packet_id;
-		packet->data = data;
+		packet->data = receive_bytes(length - varint_encode(packet_id)->size);
 	} else {
-		int32_t compressed_length = varint_receive(get_socket());
-		int32_t uncompressed_length = varint_receive(get_socket());
-		NetworkBuffer *compressed_data = buffer_new();
-		buffer_receive(compressed_data, get_socket(), compressed_length);
+		int32_t compressed_length = receive_varint();
+		int32_t uncompressed_length = receive_varint();
+		NetworkBuffer *compressed_data = receive_bytes(compressed_length);
 
 		if (uncompressed_length != 0) {
 			char uncompressed_data_temp[uncompressed_length];
 			uncompress((Bytef *) uncompressed_data_temp,
 			           (uLongf *) &uncompressed_length,
 			           (Bytef *) compressed_data->bytes,
-			           (uLong) &compressed_length);
+			           (uLong) compressed_length);
 			NetworkBuffer *uncompressed_data = buffer_new();
 			buffer_write_little_endian(
 					uncompressed_data,
@@ -376,7 +450,7 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 	};
 	bool **optionals = calloc(types_length, sizeof(bool *));
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x00);
+	MCVarInt *packet_id = varint_encode(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -386,10 +460,10 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 			.packet_id = packet_id
 	};
 	packet->_header = wrapper;
-	packet->protocol_version = writeVarInt(760);
+	packet->protocol_version = varint_encode(760);
 	packet->address = address;
 	packet->port = port;
-	packet->next_state = writeVarInt(state);
+	packet->next_state = varint_encode(state);
 	return packet;
 }
 
@@ -398,7 +472,7 @@ StatusRequestPacket *status_request_packet_new() {
 	uint8_t types_length = 0;
 	PacketField *types = NULL;
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0);
+	MCVarInt *packet_id = varint_encode(0);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -420,7 +494,7 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	};
 	bool **optionals = calloc(types_length, sizeof(bool *));
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x00);
+	MCVarInt *packet_id = varint_encode(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -462,7 +536,7 @@ LoginStartPacket *login_start_packet_new(
 	if (!has_player_uuid) {
 		optionals[6] = &packet->has_player_uuid;
 	}
-	MCVarInt *packet_id = writeVarInt(0x00);
+	MCVarInt *packet_id = varint_encode(0x00);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -503,7 +577,7 @@ EncryptionResponsePacket *encryption_response_packet_new(
 	optionals[3] = &packet->_has_no_verify_token;
 	optionals[4] = &packet->_has_no_verify_token;
 
-	MCVarInt *packet_id = writeVarInt(0x01);
+	MCVarInt *packet_id = varint_encode(0x01);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -512,6 +586,8 @@ EncryptionResponsePacket *encryption_response_packet_new(
 			.state = STATUS,
 			.packet_id = packet_id
 	};
+
+
 	packet->_header = wrapper;
 	packet->shared_secret = shared_secret;
 	packet->has_verify_token = has_verify_token;
@@ -538,7 +614,7 @@ EncryptionRequestPacket *encryption_request_packet_new(
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x01);
+	MCVarInt *packet_id = varint_encode(0x01);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -572,7 +648,7 @@ LoginSuccessPacket *login_success_packet_new(
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x02);
+	MCVarInt *packet_id = varint_encode(0x02);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -614,7 +690,7 @@ ClientInformationPacket *client_info_packet_new(
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x08);
+	MCVarInt *packet_id = varint_encode(0x08);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -656,7 +732,7 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x15);
+	MCVarInt *packet_id = varint_encode(0x15);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -684,7 +760,7 @@ ClientCommandPacket *client_command_packet_new(MCVarInt *action) {
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x07);
+	MCVarInt *packet_id = varint_encode(0x07);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -707,7 +783,7 @@ ConfirmTeleportationPacket *confirm_teleportation_packet_new(MCVarInt *teleport_
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x00);
+	MCVarInt *packet_id = varint_encode(0x00);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -772,7 +848,7 @@ LoginPlayPacket *login_play_packet_new(
 		optionals[18] = &packet->has_death_location;
 	}
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x25);
+	MCVarInt *packet_id = varint_encode(0x25);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -814,7 +890,7 @@ DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason) {
 	};
 	bool **optionals = calloc(types_length, sizeof(bool *));
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = writeVarInt(0x19);
+	MCVarInt *packet_id = varint_encode(0x19);
 	PacketHeader wrapper = {
 			.member_types = types,
 			.members = types_length,
@@ -853,7 +929,7 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x39);
+	MCVarInt *packet_id = varint_encode(0x39);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -884,7 +960,7 @@ UpdateRecipesPacket *update_recipes_packet_new(MCVarInt *no_of_recipes, NetworkB
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x39);
+	MCVarInt *packet_id = varint_encode(0x39);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -909,7 +985,7 @@ ChangeDifficultyPacket *change_difficulty_packet_new(uint8_t difficulty, bool di
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x0b);
+	MCVarInt *packet_id = varint_encode(0x0b);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,
@@ -935,7 +1011,7 @@ PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float fly
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = writeVarInt(0x31);
+	MCVarInt *packet_id = varint_encode(0x31);
 	PacketHeader header = {
 			.member_types = types,
 			.members = types_length,

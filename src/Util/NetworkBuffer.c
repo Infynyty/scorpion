@@ -8,13 +8,13 @@
 #include "SocketWrapper.h"
 #include "Logger.h"
 
-#define MAX_BUFFER_SIZE 2097151 // maximum length for a packet
+#define MAX_BUFFER_SIZE 2097151 // maximum size for a packet
 
 
 NetworkBuffer *buffer_new() {
 	NetworkBuffer *buffer = malloc(sizeof(NetworkBuffer));
 	buffer->bytes = calloc(0, sizeof(char));
-	buffer->byte_size = 0;
+	buffer->size = 0;
 	return buffer;
 }
 
@@ -26,13 +26,13 @@ void buffer_free(NetworkBuffer *buffer) {
 
 void buffer_write_bytes(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
 	if (length_in_bytes == 0) return;
-	if (buffer->byte_size + length_in_bytes >= MAX_BUFFER_SIZE) {
-		fprintf(stderr, "NetworkBuffer length (%d) too big!", buffer->byte_size + length_in_bytes);
+	if (buffer->size + length_in_bytes >= MAX_BUFFER_SIZE) {
+		fprintf(stderr, "NetworkBuffer size (%d) too big!", buffer->size + length_in_bytes);
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
 	}
 	//Resize array
-	char *temp = realloc(buffer->bytes, (buffer->byte_size + length_in_bytes) * sizeof(char));
+	char *temp = realloc(buffer->bytes, (buffer->size + length_in_bytes) * sizeof(char));
 	if (temp == NULL) {
 		fprintf(stderr, "Reallocation failed!");
 		free(buffer->bytes);
@@ -41,9 +41,9 @@ void buffer_write_bytes(NetworkBuffer *buffer, void *bytes, const size_t length_
 		buffer->bytes = temp;
 	}
 	//Write new bytes to the last location of the old array
-	memmove(buffer->bytes + buffer->byte_size, bytes, length_in_bytes);
+	memmove(buffer->bytes + buffer->size, bytes, length_in_bytes);
 	//Set new size of array
-	buffer->byte_size += length_in_bytes;
+	buffer->size += length_in_bytes;
 }
 
 void swap_endianness(void *bytes, const size_t length_in_bytes) {
@@ -56,7 +56,7 @@ void swap_endianness(void *bytes, const size_t length_in_bytes) {
 
 //TODO: check endianness at compile time
 void buffer_swap_endianness(NetworkBuffer *buffer) {
-	swap_endianness(buffer->bytes, buffer->byte_size);
+	swap_endianness(buffer->bytes, buffer->size);
 }
 
 void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
@@ -70,7 +70,7 @@ void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, const size_t
 }
 
 static void buffer_remove(NetworkBuffer *buffer, const size_t length) {
-	int32_t size_after_remove = (int32_t) (buffer->byte_size - length);
+	int32_t size_after_remove = (int32_t) (buffer->size - length);
 	if (size_after_remove < 0) {
 		size_after_remove = 0;
 	}
@@ -84,12 +84,12 @@ static void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 	} else {
 		buffer->bytes = temp;
 	}
-	buffer->byte_size = size_after_remove;
+	buffer->size = size_after_remove;
 }
 
 void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
-	if (length > buffer->byte_size) {
-		cmc_log(ERR, "Tried polling %d bytes of a buffer with size %d", length, buffer->byte_size);
+	if (length > buffer->size) {
+		cmc_log(ERR, "Tried polling %d bytes of a buffer with size %d", length, buffer->size);
 		exit(EXIT_FAILURE);
 	}
 	memmove(dest, buffer->bytes, length);
@@ -98,7 +98,7 @@ void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
 
 void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest) {
 	buffer_poll(src, length, dest);
-	dest->byte_size += length;
+	dest->size += length;
 }
 
 // Strings
@@ -142,8 +142,14 @@ void buffer_read_array(NetworkBuffer *src, NetworkBuffer *dest) {
 	buffer_remove(src, length);
 }
 
-static int32_t compression_threshold;
-static bool compression_enabled;
+NetworkBuffer *buffer_read_string(NetworkBuffer *buffer) {
+    NetworkBuffer *string = buffer_new();
+    int32_t length = buffer_read_varint(buffer);
+    uint8_t temp[length];
+    buffer_poll(buffer, length, temp);
+    buffer_write_little_endian(string, temp, length);
+    return string;
+}
 
 void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length) {
 	char bytes[length];

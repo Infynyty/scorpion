@@ -10,13 +10,13 @@
 #include "NetworkBuffer.h"
 
 typedef struct MCVarInt {
-	char length;
+	char size;
 	uint8_t bytes[5];
 } __attribute__((__packed__)) MCVarInt;
 
 unsigned char *readVarInt(int varInt);
 
-MCVarInt *writeVarInt(unsigned int givenInt);
+MCVarInt *varint_encode(unsigned int givenInt);
 
 uint8_t *get_bytes(MCVarInt *varInt);
 

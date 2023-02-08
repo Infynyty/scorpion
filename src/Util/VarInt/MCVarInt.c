@@ -59,7 +59,7 @@ void bitarray_to_bytearray(const bool *array, uint8_t *byteArray) {
 	}
 }
 
-MCVarInt *writeVarInt(unsigned int givenInt) {
+MCVarInt *varint_encode(unsigned int givenInt) {
 	MCVarInt *varInt = malloc(sizeof *varInt);
 	bool array[40] = {0};
 	write_int_to_bit_array(givenInt, array);
@@ -71,7 +71,7 @@ MCVarInt *writeVarInt(unsigned int givenInt) {
 	uint8_t byteArray[5] = {0};
 
 	bitarray_to_bytearray(array, byteArray);
-	varInt->length = byte_array_size;
+	varInt->size = byte_array_size;
 	//TODO: fix
 	memcpy(varInt->bytes, byteArray, 5);
 	return varInt;
@@ -112,7 +112,7 @@ uint8_t *get_bytes(MCVarInt *varInt) {
 }
 
 unsigned char get_length(MCVarInt *varInt) {
-	return varInt->length;
+	return varInt->size;
 }
 
 

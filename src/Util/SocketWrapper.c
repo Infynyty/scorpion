@@ -69,7 +69,7 @@ void send_wrapper(SocketWrapper *socket, void *bytes, size_t length) {
 	send(socket->socket, bytes, length, 0);
 #endif
 #if defined(__APPLE__) || defined(__linux__)
-	send(socket->socket, bytes, length, 0);
+	send(socket->socket, bytes, size, 0);
 #endif
 }
 
