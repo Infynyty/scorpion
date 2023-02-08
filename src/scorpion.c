@@ -36,7 +36,7 @@ void handle_login_play(void *packet) {
 			false,
 			true
 	);
-	packet_send(&cip->_header, get_socket());
+	packet_encode(&cip->_header, get_socket());
 	packet_free(&cip->_header);
 }
 
@@ -44,7 +44,7 @@ void handle_init_pos(void *packet) {
 	SynchronizePlayerPositionPacket *sync = packet;
 	MCVarInt *teleport_id = writeVarInt(varint_decode(sync->teleport_id));
 	ConfirmTeleportationPacket *confirmation = confirm_teleportation_packet_new(teleport_id);
-	packet_send(&confirmation->_header, get_socket());
+	packet_encode(&confirmation->_header, get_socket());
 	packet_free(&confirmation->_header);
 	cmc_log(INFO, "Confirmed teleportation.");
 
@@ -56,12 +56,12 @@ void handle_init_pos(void *packet) {
 			sync->pitch,
 			true
 	);
-	packet_send(&ppr->_header, get_socket());
+	packet_encode(&ppr->_header, get_socket());
 	packet_free(&ppr->_header);
 	cmc_log(INFO, "Sent position.");
 
 	ClientCommandPacket *cmd = client_command_packet_new(writeVarInt(CLIENT_ACTION_RESPAWN));
-	packet_send(&cmd->_header, get_socket());
+	packet_encode(&cmd->_header, get_socket());
 	packet_free(&cmd->_header);
 
 	double currentX = sync->y;
@@ -78,7 +78,7 @@ void handle_init_pos(void *packet) {
 	ppr_new->y = currentX;
 	cmc_log(DEBUG, "Position x: %lf", currentX);
 	cmc_log(DEBUG, "Sending packet x: %lf", currentX);
-	packet_send(&ppr_new->_header, get_socket());
+	packet_encode(&ppr_new->_header, get_socket());
 	packet_free(&ppr_new->_header);
 //    }
 
@@ -86,7 +86,7 @@ void handle_init_pos(void *packet) {
 
 void handle_encryption(void *packet) {
 	EncryptionRequestPacket *encryption_pkt = packet;
-	cmc_log(INFO, "Server ID: %s", encryption_pkt->server_id->bytes);
+	cmc_log(INFO, "Public key: %s", encryption_pkt->public_key->bytes);
 }
 
 int main() {
@@ -102,11 +102,16 @@ int main() {
 			25565,
 			HANDSHAKE_LOGIN
 	);
-	packet_send(&handshakePacket->_header, socket_wrapper);
+	packet_encode(&handshakePacket->_header, socket_wrapper);
 	packet_free(&handshakePacket->_header);
 
-	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), false, false);
-	packet_send(&loginStartPacket->_header, socket_wrapper);
+	NetworkBuffer *uuid = buffer_new();
+	uint64_t low = 0;
+	uint64_t high = 0;
+	buffer_write(uuid, &low, sizeof(uint64_t));
+	buffer_write(uuid, &high, sizeof(uint64_t));
+	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), false, false, uuid);
+	packet_encode(&loginStartPacket->_header, socket_wrapper);
 	packet_free(&loginStartPacket->_header);
 
 

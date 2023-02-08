@@ -75,7 +75,8 @@ static void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 		size_after_remove = 0;
 	}
 	//Resize array
-	char *temp = realloc(buffer->bytes + length, size_after_remove * sizeof(char));
+	memmove(buffer->bytes, buffer->bytes + length, size_after_remove);
+	char *temp = realloc(buffer->bytes, size_after_remove * sizeof(char));
 	if (temp == NULL) {
 		fprintf(stderr, "Reallocation failed!");
 		free(buffer->bytes);
@@ -95,15 +96,9 @@ void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
 	buffer_remove(buffer, length);
 }
 
-void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket) {
-	// prefix packet with packet size as varint
-	NetworkBuffer *packet_size_bytes = buffer_new();
-	MCVarInt *packet_size_varint = writeVarInt(buffer->byte_size);
-	buffer_write_little_endian(packet_size_bytes, packet_size_varint->bytes, packet_size_varint->length);
-	send_wrapper(socket, packet_size_varint->bytes, packet_size_varint->length);
-	buffer_free(packet_size_bytes);
-	free(packet_size_varint);
-	send_wrapper(socket, buffer->bytes, buffer->byte_size);
+void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest) {
+	buffer_poll(src, length, dest);
+	dest->byte_size += length;
 }
 
 // Strings
@@ -139,6 +134,12 @@ int32_t buffer_read_varint(NetworkBuffer *buffer) {
 		}
 	}
 	return result;
+}
+
+void buffer_read_array(NetworkBuffer *src, NetworkBuffer *dest) {
+	uint32_t length = buffer_read_varint(src);
+	buffer_write_bytes(dest, src->bytes, length);
+	buffer_remove(src, length);
 }
 
 static int32_t compression_threshold;

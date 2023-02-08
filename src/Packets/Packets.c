@@ -6,6 +6,7 @@
 #include "NBTParser.h"
 #include "zlib.h"
 
+/** Utility **/
 
 uint8_t get_types_size(PacketField type) {
 	switch (type) {
@@ -28,57 +29,6 @@ uint8_t get_types_size(PacketField type) {
 		default:
 			return sizeof(void *);
 	}
-}
-
-void packet_send(PacketHeader *packet, SocketWrapper *socket) {
-	NetworkBuffer *buffer = buffer_new();
-	void *current_byte = packet + 1;
-	buffer_write_little_endian(buffer, packet->packet_id->bytes, packet->packet_id->length);
-	for (int i = 0; i < packet->members; ++i) {
-		PacketField m_type = packet->member_types[i];
-
-		bool *is_optional = packet->optionals[i];
-		if (is_optional == NULL || *is_optional) {
-			switch (m_type) {
-				case PKT_BOOL:
-				case PKT_UINT8:
-				case PKT_UINT16:
-				case PKT_UINT32:
-				case PKT_UINT64:
-				case PKT_FLOAT:
-				case PKT_DOUBLE:
-					buffer_write(buffer, current_byte, get_types_size(m_type));
-					break;
-				case PKT_VARINT: {
-					MCVarInt *varInt = (*(MCVarInt **) (current_byte));
-					buffer_write_little_endian(buffer, varInt->bytes, varInt->length);
-					break;
-				}
-				case PKT_VARLONG:
-					//TODO: Fill in
-					break;
-				case PKT_BYTEARRAY:
-				case PKT_UUID:
-				case PKT_STRING: {
-					NetworkBuffer *string = *((NetworkBuffer **) current_byte);
-					MCVarInt *length = writeVarInt(string->byte_size);
-					buffer_write_little_endian(buffer, length->bytes, length->length);
-					buffer_write_little_endian(buffer, string->bytes, string->byte_size);
-
-
-					free(length);
-					break;
-				}
-				default:
-					cmc_log(ERR, "Used unsupported type at packet_send(): %d", m_type);
-					exit(EXIT_FAILURE);
-			}
-		}
-		current_byte = (void *) current_byte;
-		current_byte += get_types_size(m_type);
-	}
-	buffer_send_packet(buffer, socket);
-	buffer_free(buffer);
 }
 
 void packet_free(PacketHeader *packet) {
@@ -150,6 +100,99 @@ void packet_free(PacketHeader *packet) {
 	free(packet);
 }
 
+static bool compression_enabled = false;
+static int32_t compression_threshold = 0;
+
+void set_compression(bool is_enabled) {
+	compression_enabled = is_enabled;
+}
+
+void set_compression_threshold(int32_t threshold) {
+	compression_threshold = threshold;
+}
+
+static bool encrpytion_enabled = false;
+
+void set_encrpytion(bool is_enabled) {
+	encrpytion_enabled = is_enabled;
+}
+
+/** Send **/
+
+NetworkBuffer *packet_encode(PacketHeader *header) {
+	NetworkBuffer *buffer = buffer_new();
+	void *current_byte = header + 1;
+	buffer_write_little_endian(buffer, header->packet_id->bytes, header->packet_id->length);
+	for (int i = 0; i < header->members; ++i) {
+		PacketField m_type = header->member_types[i];
+
+		bool *is_optional = header->optionals[i];
+		if (is_optional == NULL || *is_optional) {
+			switch (m_type) {
+				case PKT_BOOL:
+				case PKT_UINT8:
+				case PKT_UINT16:
+				case PKT_UINT32:
+				case PKT_UINT64:
+				case PKT_FLOAT:
+				case PKT_DOUBLE:
+					buffer_write(buffer, current_byte, get_types_size(m_type));
+					break;
+				case PKT_VARINT: {
+					MCVarInt *varInt = (*(MCVarInt **) (current_byte));
+					buffer_write_little_endian(buffer, varInt->bytes, varInt->length);
+					break;
+				}
+				case PKT_VARLONG:
+					//TODO: Fill in
+					break;
+				case PKT_BYTEARRAY:
+				case PKT_UUID:
+				case PKT_STRING: {
+					NetworkBuffer *string = *((NetworkBuffer **) current_byte);
+					MCVarInt *length = writeVarInt(string->byte_size);
+					buffer_write_little_endian(buffer, length->bytes, length->length);
+					buffer_write_little_endian(buffer, string->bytes, string->byte_size);
+
+
+					free(length);
+					break;
+				}
+				default:
+					cmc_log(ERR, "Used unsupported type at packet_encode(): %d", m_type);
+					exit(EXIT_FAILURE);
+			}
+		}
+		current_byte = (void *) current_byte;
+		current_byte += get_types_size(m_type);
+	}
+	NetworkBuffer *length_prefixed = buffer_new();
+	MCVarInt *packet_size = writeVarInt(buffer->byte_size);
+	buffer_write_little_endian(length_prefixed, packet_size->bytes, packet_size->length);
+	buffer_write(length_prefixed, buffer->bytes, buffer->byte_size);
+	free(packet_size);
+	return length_prefixed;
+}
+
+void packet_compress(NetworkBuffer *packet) {
+
+}
+
+void packet_encrypt(NetworkBuffer *packet) {
+
+}
+
+void packet_send(const PacketHeader *header) {
+	NetworkBuffer *packet = packet_encode(header);
+	if (compression_enabled && packet->byte_size > compression_threshold) {
+		packet_compress(packet);
+	}
+	if (encrpytion_enabled) {
+		packet_encrypt(packet);
+	}
+	send_wrapper(get_socket(), packet->bytes, packet->byte_size);
+}
+
 void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 	void *ptr = header + 1;
 	for (int i = 0; i < header->members; ++i) {
@@ -207,24 +250,23 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 			}
 			case PKT_UUID: {
 				NetworkBuffer *uuid = buffer_new();
-				buffer_receive(uuid, get_socket(), 2 * sizeof(uint64_t));
+				buffer_poll(packet, 2 * sizeof(uint64_t), uuid);
 				variable_pointer = &uuid;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
 			case PKT_BYTEARRAY: {
 				NetworkBuffer *bytes = buffer_new();
-				uint32_t length = varint_receive(get_socket());
-				buffer_receive(bytes, get_socket(), length);
+				buffer_read_array(packet, bytes);
 				variable_pointer = &bytes;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
 			case PKT_STRING_ARRAY: {
 				NetworkBuffer *strings = buffer_new();
-				uint32_t length = varint_receive(get_socket());
+				uint32_t length = buffer_read_varint(packet);
 				for (int j = 0; j < length; ++j) {
-					buffer_receive_string(strings, get_socket());
+					buffer_read_array(packet, strings);
 				}
 				variable_pointer = &strings;
 				variable_size = sizeof(NetworkBuffer *);
@@ -232,12 +274,14 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 			}
 			case PKT_STRING: {
 				NetworkBuffer *string = buffer_new();
-				buffer_receive_string(string, get_socket());
+				buffer_read_array(packet, string);
 				variable_pointer = &string;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
 			case PKT_NBTTAG: {
+				cmc_log(ERR, "Tried receiving unhandled packet field %d", field);
+				exit(EXIT_FAILURE);
 				NetworkBuffer *nbt = buffer_new();
 				consume_nbt_data(get_socket());
 				variable_pointer = &nbt;
@@ -261,10 +305,9 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 	}
 }
 
-static bool compression_enabled = false;
-
-void set_compression(bool is_enabled) {
-	compression_enabled = is_enabled;
+void packet_recv(PacketHeader *header) {
+	NetworkBuffer *input = buffer_new();
+	
 }
 
 GenericPacket *packet_receive() {
@@ -391,7 +434,12 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	return packet;
 }
 
-LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_sig_data, bool has_player_uuid) {
+LoginStartPacket *login_start_packet_new(
+		NetworkBuffer *player_name,
+		bool has_sig_data,
+		bool has_player_uuid,
+		NetworkBuffer *uuid
+) {
 	LoginStartPacket *packet = malloc(sizeof(LoginStartPacket));
 	uint8_t types_length = 7;
 	PacketField *types = malloc(types_length * sizeof(PacketField));
@@ -427,6 +475,7 @@ LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_si
 	packet->player_name = player_name;
 	packet->has_sig_data = has_sig_data;
 	packet->has_player_uuid = has_player_uuid;
+	packet->uuid = uuid;
 	return packet;
 }
 

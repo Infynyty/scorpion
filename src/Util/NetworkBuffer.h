@@ -28,6 +28,8 @@ NetworkBuffer *buffer_new();
 
 void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest);
 
+void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest);
+
 #define buffer_read(type, _buffer) ({    \
         type _result = 0;                             \
         buffer_poll(_buffer, sizeof(type), &_result); \
@@ -42,6 +44,14 @@ void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest);
         memmove(&_result, _buffer->bytes, sizeof(type));\
         buffer_free(_buffer);         \
         _result;                             \
+})
+
+#define buffer_receive_array() ({ \
+        NetworkBuffer *_buffer = buffer_new();                             \
+        uint32_t _length = varint_receive(get_socket());                   \
+        buffer_receive(_buffer, get_socket(), _length);               \
+        buffer_swap_endianness(_buffer);                                    \
+        _buffer;                             \
 })
 
 void buffer_swap_endianness(NetworkBuffer *buffer);
@@ -74,15 +84,6 @@ void buffer_write(NetworkBuffer *buffer, void *bytes, size_t length_in_bytes);
 void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, size_t length_in_bytes);
 
 /**
- * Send the bytes of a buffer which should be a complete packet to the server.
- * @param buffer The buffer from which the bytes should be taken.
- * @param socket The socket to send_wrapper the packet from.
- *
- * @warning The packet will sent alongside a header containing the buffer size as a VarInt.
- */
-void buffer_send_packet(const NetworkBuffer *buffer, SocketWrapper *socket);
-
-/**
  * Reads a string from the incoming byte stream and writes its content to a buffer.
  * @param buffer    The buffer that the string will be written to.
  * @param socket    The socket from which the input will be taken.
@@ -104,6 +105,8 @@ void buffer_print_string(NetworkBuffer *buffer);
 void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length);
 
 int32_t buffer_read_varint(NetworkBuffer *buffer);
+
+void buffer_read_array(NetworkBuffer *src, NetworkBuffer *dest);
 
 
 #endif //CMC_NETWORKBUFFER_H

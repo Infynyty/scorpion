@@ -36,7 +36,15 @@ typedef struct {
 	MCVarInt *packet_id;
 } PacketHeader;
 
-void packet_send(PacketHeader *packet, SocketWrapper *socket);
+/** Send **/
+
+/**
+ * Sends a packet struct to the server. This method will encode the bytes into the required format and compress as well
+ * as encrypt the packet if needed.
+ * @param header The header of the packet struct that will be sent.
+ *
+ */
+void packet_send(const PacketHeader *header);
 
 GenericPacket *packet_receive();
 
@@ -45,6 +53,10 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet);
 void packet_free(PacketHeader *packet);
 
 void set_compression(bool is_enabled);
+
+void set_compression_threshold(int32_t threshold);
+
+void set_encrpytion(bool is_enabled);
 
 /** State: Handshake **/
 
@@ -106,7 +118,12 @@ typedef struct __attribute__((__packed__)) LoginStartPacket {
 	NetworkBuffer *uuid;
 } LoginStartPacket;
 
-LoginStartPacket *login_start_packet_new(NetworkBuffer *player_name, bool has_sig_data, bool has_player_uuid);
+LoginStartPacket *login_start_packet_new(
+		NetworkBuffer *player_name,
+		bool has_sig_data,
+		bool has_player_uuid,
+		NetworkBuffer *uuid
+);
 
 typedef struct __attribute__((__packed__)) EncryptionResponsePacket {
 	PacketHeader _header;

@@ -9,173 +9,173 @@
 #include "Logger.h"
 
 typedef enum NBT_TAGS {
-    TAG_END, TAG_BYTE, TAG_SHORT, TAG_INT, TAG_LONG, TAG_FLOAT, TAG_DOUBLE, TAG_BYTE_ARRAY, TAG_STRING, TAG_LIST,
-    TAG_COMPOUND, TAG_INT_ARRAY, TAG_LONG_ARRAY
+	TAG_END, TAG_BYTE, TAG_SHORT, TAG_INT, TAG_LONG, TAG_FLOAT, TAG_DOUBLE, TAG_BYTE_ARRAY, TAG_STRING, TAG_LIST,
+	TAG_COMPOUND, TAG_INT_ARRAY, TAG_LONG_ARRAY
 } NBT_TAGS;
 
-void handle_compound(SocketWrapper *socket);
-void handle_string(SocketWrapper *socket);
+void handle_compound();
+
+void handle_string();
 
 void consume_nbt_data(SocketWrapper *socket) {
 //    NetworkBuffer *test = buffer_new();
 //    buffer_receive(test, socket, 200);
 
-    NBT_TAGS element_tag = buffer_receive_uint8_t(socket);
-    handle_string(socket);
-    handle_compound(socket);
+	NBT_TAGS element_tag = buffer_receive_type(uint8_t);
+	handle_string(socket);
+	handle_compound(socket);
 }
 
 void handle_end(SocketWrapper *socket) {
-    return;
+	return;
 }
 
 void handle_byte(SocketWrapper *socket) {
-    buffer_receive_uint8_t(socket);
+	buffer_receive_type(uint8_t);
 }
 
 void handle_short(SocketWrapper *socket) {
-    buffer_receive_int16_t(socket);
+	buffer_receive_type(uint16_t);
 }
 
 void handle_int(SocketWrapper *socket) {
-    buffer_receive_int32_t(socket);
+	buffer_receive_type(uint32_t);
 }
 
 void handle_long(SocketWrapper *socket) {
-    buffer_receive_int64_t(socket);
+	buffer_receive_type(uint64_t);
 }
 
 void handle_float(SocketWrapper *socket) {
-    buffer_receive_float(socket);
+	buffer_receive_type(float);
 }
 
 void handle_double(SocketWrapper *socket) {
-    buffer_receive_double(socket);
+	buffer_receive_type(double);
 }
 
 void handle_byte_array(SocketWrapper *socket) {
-    int32_t length = buffer_receive_int32_t(socket);
-    for (int i = 0; i < length; ++i) {
-        handle_byte(socket);
-    }
+	int32_t length = buffer_receive_type(int32_t);
+	for (int i = 0; i < length; ++i) {
+		handle_byte(socket);
+	}
 }
 
 void handle_string(SocketWrapper *socket) {
-    uint16_t length = buffer_receive_uint16_t(socket);
-    NetworkBuffer *string = buffer_new();
-    buffer_receive(string, socket, length);
-    buffer_free(string);
+	uint16_t length = buffer_receive_type(uint16_t);
+	NetworkBuffer *string = buffer_new();
+	buffer_receive(string, socket, length);
+	buffer_free(string);
 }
 
 void handle_int_array(SocketWrapper *socket) {
-    int32_t length = buffer_receive_int32_t(socket);
-    for (int i = 0; i < length; ++i) {
-        handle_int(socket);
-    }
+	int32_t length = buffer_receive_type(int32_t);
+	for (int i = 0; i < length; ++i) {
+		handle_int(socket);
+	}
 }
 
 void handle_long_array(SocketWrapper *socket) {
-    int32_t length = buffer_receive_int32_t(socket);
-    for (int i = 0; i < length; ++i) {
-        handle_long(socket);
-    }
+	int32_t length = buffer_receive_type(int32_t);
+	for (int i = 0; i < length; ++i) {
+		handle_long(socket);
+	}
 }
-
 
 
 void handle_list(SocketWrapper *socket) {
-    NBT_TAGS tag = buffer_receive_uint8_t(socket);
-    int32_t length = buffer_receive_int32_t(socket);
-    for (int i = 0; i < length; ++i) {
-        switch (tag) {
-            case TAG_END:
-                handle_end(socket);
-                return;
-            case TAG_BYTE:
-                handle_byte(socket);
-                break;
-            case TAG_SHORT:
-                handle_short(socket);
-                break;
-            case TAG_INT:
-                handle_int(socket);
-                break;
-            case TAG_LONG:
-                handle_long(socket);
-                break;
-            case TAG_FLOAT:
-                handle_float(socket);
-                break;
-            case TAG_DOUBLE:
-                handle_double(socket);
-                break;
-            case TAG_BYTE_ARRAY:
-                handle_byte_array(socket);
-                break;
-            case TAG_STRING:
-                handle_string(socket);
-                break;
-            case TAG_LIST:
-                handle_list(socket);
-                break;
-            case TAG_COMPOUND:
-                handle_compound(socket);
-                break;
-            case TAG_INT_ARRAY:
-                handle_int_array(socket);
-                break;
-            case TAG_LONG_ARRAY:
-                handle_long_array(socket);
-                break;
-        }
-    }
+	NBT_TAGS tag = buffer_receive_type(uint8_t);
+	int32_t length = buffer_receive_type(int32_t);
+	for (int i = 0; i < length; ++i) {
+		switch (tag) {
+			case TAG_END:
+				handle_end(socket);
+				return;
+			case TAG_BYTE:
+				handle_byte(socket);
+				break;
+			case TAG_SHORT:
+				handle_short(socket);
+				break;
+			case TAG_INT:
+				handle_int(socket);
+				break;
+			case TAG_LONG:
+				handle_long(socket);
+				break;
+			case TAG_FLOAT:
+				handle_float(socket);
+				break;
+			case TAG_DOUBLE:
+				handle_double(socket);
+				break;
+			case TAG_BYTE_ARRAY:
+				handle_byte_array(socket);
+				break;
+			case TAG_STRING:
+				handle_string(socket);
+				break;
+			case TAG_LIST:
+				handle_list(socket);
+				break;
+			case TAG_COMPOUND:
+				handle_compound(socket);
+				break;
+			case TAG_INT_ARRAY:
+				handle_int_array(socket);
+				break;
+			case TAG_LONG_ARRAY:
+				handle_long_array(socket);
+				break;
+		}
+	}
 }
 
 void handle_compound(SocketWrapper *socket) {
-    while (1) {
-        NBT_TAGS element_tag = buffer_receive_uint8_t(socket);
-        if (element_tag == TAG_END) return;
-        handle_string(socket);
-        switch (element_tag) {
-            case TAG_END:
-                handle_end(socket);
-                return;
-            case TAG_BYTE:
-                handle_byte(socket);
-                break;
-            case TAG_SHORT:
-                handle_short(socket);
-                break;
-            case TAG_INT:
-                handle_int(socket);
-                break;
-            case TAG_LONG:
-                handle_long(socket);
-                break;
-            case TAG_FLOAT:
-                handle_float(socket);
-                break;
-            case TAG_DOUBLE:
-                handle_double(socket);
-                break;
-            case TAG_BYTE_ARRAY:
-                handle_byte_array(socket);
-                break;
-            case TAG_STRING:
-                handle_string(socket);
-                break;
-            case TAG_LIST:
-                handle_list(socket);
-                break;
-            case TAG_COMPOUND:
-                handle_compound(socket);
-                break;
-            case TAG_INT_ARRAY:
-                handle_int_array(socket);
-                break;
-            case TAG_LONG_ARRAY:
-                handle_long_array(socket);
-                break;
-        }
-    }
+	while (1) {
+		NBT_TAGS element_tag = buffer_receive_type(uint8_t);
+		if (element_tag == TAG_END) return;
+		handle_string(socket);
+		switch (element_tag) {
+			case TAG_END:
+				handle_end(socket);
+				return;
+			case TAG_BYTE:
+				handle_byte(socket);
+				break;
+			case TAG_SHORT:
+				handle_short(socket);
+				break;
+			case TAG_INT:
+				handle_int(socket);
+				break;
+			case TAG_LONG:
+				handle_long(socket);
+				break;
+			case TAG_FLOAT:
+				handle_float(socket);
+				break;
+			case TAG_DOUBLE:
+				handle_double(socket);
+				break;
+			case TAG_BYTE_ARRAY:
+				handle_byte_array(socket);
+				break;
+			case TAG_STRING:
+				handle_string(socket);
+				break;
+			case TAG_LIST:
+				handle_list(socket);
+				break;
+			case TAG_COMPOUND:
+				handle_compound(socket);
+				break;
+			case TAG_INT_ARRAY:
+				handle_int_array(socket);
+				break;
+			case TAG_LONG_ARRAY:
+				handle_long_array(socket);
+				break;
+		}
+	}
 }
