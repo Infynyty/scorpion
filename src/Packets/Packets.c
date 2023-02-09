@@ -40,10 +40,10 @@ void packet_free(PacketHeader *packet) {
 		PacketField m_type = packet->member_types[i];
 		bool *optional_present = packet->optionals[i];
 		if (optional_present != NULL && !*optional_present) {
-            ptr = (void *) ptr;
-            ptr += get_types_size(m_type);
-            continue;
-        }
+			ptr = (void *) ptr;
+			ptr += get_types_size(m_type);
+			continue;
+		}
 		switch (m_type) {
 			case PKT_BOOL:
 			case PKT_BYTE:
@@ -124,14 +124,14 @@ static EVP_CIPHER_CTX *ctx_encrypt;
 static EVP_CIPHER_CTX *ctx_decrypt;
 
 void init_encryption(NetworkBuffer *shared_secret) {
-    encrpytion_enabled = true;
-    ctx_encrypt = EVP_CIPHER_CTX_new();
-    ctx_decrypt = EVP_CIPHER_CTX_new();
-    EVP_CIPHER_CTX_init(ctx_encrypt);
-    EVP_CIPHER_CTX_init(ctx_decrypt);
+	encrpytion_enabled = true;
+	ctx_encrypt = EVP_CIPHER_CTX_new();
+	ctx_decrypt = EVP_CIPHER_CTX_new();
+	EVP_CIPHER_CTX_init(ctx_encrypt);
+	EVP_CIPHER_CTX_init(ctx_decrypt);
 
-    EVP_EncryptInit_ex(ctx_encrypt, EVP_aes_128_cfb8(), NULL, shared_secret->bytes, shared_secret->bytes);
-    EVP_DecryptInit_ex(ctx_decrypt, EVP_aes_128_cfb8(), NULL, shared_secret->bytes, shared_secret->bytes);
+	EVP_EncryptInit_ex(ctx_encrypt, EVP_aes_128_cfb8(), NULL, shared_secret->bytes, shared_secret->bytes);
+	EVP_DecryptInit_ex(ctx_decrypt, EVP_aes_128_cfb8(), NULL, shared_secret->bytes, shared_secret->bytes);
 }
 
 /** / Utility **/
@@ -167,15 +167,15 @@ NetworkBuffer *packet_encode(PacketHeader *header) {
 					break;
 				case PKT_BYTEARRAY:
 				case PKT_UUID: {
-                    NetworkBuffer *uuid = *((NetworkBuffer **) current_byte);
-                    buffer_write_little_endian(buffer, uuid->bytes, uuid->size);
-                    break;
-                }
+					NetworkBuffer *uuid = *((NetworkBuffer **) current_byte);
+					buffer_write(buffer, uuid->bytes, uuid->size);
+					break;
+				}
 				case PKT_STRING: {
 					NetworkBuffer *string = *((NetworkBuffer **) current_byte);
 					MCVarInt *length = varint_encode(string->size);
 					buffer_write_little_endian(buffer, length->bytes, length->size);
-					buffer_write_little_endian(buffer, string->bytes, string->size);
+					buffer_write(buffer, string->bytes, string->size);
 
 
 					free(length);
@@ -193,48 +193,55 @@ NetworkBuffer *packet_encode(PacketHeader *header) {
 }
 
 NetworkBuffer *packet_compress(NetworkBuffer *packet) {
-    NetworkBuffer *compressed = buffer_new();
-    if (packet->size > compression_threshold) {
-        MCVarInt *uncompressed_size = varint_encode(packet->size);
+	NetworkBuffer *compressed = buffer_new();
+	if (packet->size > compression_threshold) {
+		MCVarInt *uncompressed_size = varint_encode(packet->size);
 
-        char *temp = malloc(packet->size);
-        uint64_t destLen = packet->size;
-        compress((Bytef *) temp, (uLongf *) &destLen, packet->bytes, packet->size);
+		char *temp = malloc(packet->size);
+		uint64_t destLen = packet->size;
+		compress((Bytef *) temp, (uLongf *) &destLen, packet->bytes, packet->size);
 
-        MCVarInt *compressed_size = varint_encode(destLen);
+		MCVarInt *compressed_size = varint_encode(destLen);
 
-        buffer_write_little_endian(compressed, compressed_size->bytes, compressed_size->size);
-        buffer_write_little_endian(compressed, uncompressed_size->bytes, uncompressed_size->size);
-        buffer_write_little_endian(compressed, packet->bytes, packet->size);
+		buffer_write_little_endian(compressed, compressed_size->bytes, compressed_size->size);
+		buffer_write_little_endian(compressed, uncompressed_size->bytes, uncompressed_size->size);
+		buffer_write_little_endian(compressed, packet->bytes, packet->size);
 
-        free(temp);
-    } else {
-        MCVarInt *packet_length = varint_encode(packet->size);
-        uint8_t data_length = 0;
-        buffer_write_little_endian(compressed, packet_length->bytes, packet_length->size);
-        buffer_write_little_endian(compressed, &data_length, sizeof(uint8_t));
-        buffer_write_little_endian(compressed, packet->bytes, packet->size);
-    }
-    buffer_free(packet);
-    return compressed;
+		free(temp);
+	} else {
+		MCVarInt *packet_length = varint_encode(packet->size);
+		uint8_t data_length = 0;
+		buffer_write_little_endian(compressed, packet_length->bytes, packet_length->size);
+		buffer_write_little_endian(compressed, &data_length, sizeof(uint8_t));
+		buffer_write_little_endian(compressed, packet->bytes, packet->size);
+	}
+	buffer_free(packet);
+	return compressed;
 }
 
 NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
-    NetworkBuffer *encrypted = buffer_new();
-    unsigned char temp[packet->size + EVP_CIPHER_block_size(EVP_aes_128_cfb8()) - 1];
-    int out_length;
-    if (!EVP_EncryptUpdate(ctx_encrypt, temp, &out_length, packet->bytes, packet->size)) {
-        cmc_log(ERR, "OpenSSL encryption error.");
-        exit(EXIT_FAILURE);
-    }
-    buffer_write_little_endian(encrypted, temp, out_length);
-    return encrypted;
+	NetworkBuffer *encrypted = buffer_new();
+	unsigned char temp[packet->size + EVP_CIPHER_block_size(EVP_aes_128_cfb8()) - 1];
+	int out_length;
+	if (!EVP_EncryptUpdate(ctx_encrypt, temp, &out_length, packet->bytes, packet->size)) {
+		cmc_log(ERR, "OpenSSL encryption error.");
+		exit(EXIT_FAILURE);
+	}
+	buffer_write_little_endian(encrypted, temp, out_length);
+	return encrypted;
 }
 
 void packet_send(PacketHeader *header) {
 	NetworkBuffer *packet = packet_encode(header);
 	if (compression_enabled && compression_threshold > 0) {
 		packet = packet_compress(packet);
+	} else {
+		NetworkBuffer *length_prefixed = buffer_new();
+		MCVarInt *packet_length = varint_encode(packet->size);
+		buffer_write_little_endian(length_prefixed, packet_length->bytes, packet_length->size);
+		buffer_write_little_endian(length_prefixed, packet->bytes, packet->size);
+		buffer_free(packet);
+		packet = length_prefixed;
 	}
 	if (encrpytion_enabled) {
 		packet = packet_encrypt(packet);
@@ -357,42 +364,42 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 }
 
 uint8_t receive_byte() {
-    unsigned char byte;
-    receive_wrapper(get_socket(), &byte, sizeof(byte));
-    if (encrpytion_enabled) {
-        int32_t outlen;
-        unsigned char out;
-        if (!EVP_DecryptUpdate(ctx_decrypt, &out, &outlen, &byte, sizeof(byte))) {
-            cmc_log(ERR, "OpenSSL decryption error");
-            exit(EXIT_FAILURE);
-        }
-        byte = out;
-    }
-    return byte;
+	unsigned char byte;
+	receive_wrapper(get_socket(), &byte, sizeof(byte));
+	if (encrpytion_enabled) {
+		int32_t outlen;
+		unsigned char out;
+		if (!EVP_DecryptUpdate(ctx_decrypt, &out, &outlen, &byte, sizeof(byte))) {
+			cmc_log(ERR, "OpenSSL decryption error");
+			exit(EXIT_FAILURE);
+		}
+		byte = out;
+	}
+	return byte;
 }
 
 NetworkBuffer *receive_bytes(uint64_t size) {
-    NetworkBuffer *bytes = buffer_new();
-    for (int i = 0; i < size; i++) {
-        uint8_t byte = receive_byte();
-        buffer_write_little_endian(bytes, &byte, sizeof(byte));
-    }
-    return bytes;
+	NetworkBuffer *bytes = buffer_new();
+	for (int i = 0; i < size; i++) {
+		uint8_t byte = receive_byte();
+		buffer_write_little_endian(bytes, &byte, sizeof(byte));
+	}
+	return bytes;
 }
 
 int32_t receive_varint() {
-    unsigned char current_byte;
-    int result = 0;
-    const int CONTINUE_BIT = 0b10000000;
-    const int SEGMENT_BITS = 0b01111111;
-    for (int i = 0; i < 5; ++i) {
-        current_byte = receive_byte();
-        result += (current_byte & SEGMENT_BITS) << (8 * i - i);
-        if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
-            break;
-        }
-    }
-    return result;
+	unsigned char current_byte;
+	int result = 0;
+	const int CONTINUE_BIT = 0b10000000;
+	const int SEGMENT_BITS = 0b01111111;
+	for (int i = 0; i < 5; ++i) {
+		current_byte = receive_byte();
+		result += (current_byte & SEGMENT_BITS) << (8 * i - i);
+		if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
+			break;
+		}
+	}
+	return result;
 }
 
 GenericPacket *packet_receive() {

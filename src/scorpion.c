@@ -26,14 +26,14 @@ void handle_login_play(void *packet) {
 	cmc_log(INFO, "Logged in with gamemode %d.", play->gamemode);
 
 	ClientInformationPacket *cip = client_info_packet_new(
-            string_buffer_new("de_DE"),
-            5,
-            varint_encode(ENABLED),
-            true,
-            0,
-            varint_encode(MAINHAND_RIGHT),
-            false,
-            true
+			string_buffer_new("de_DE"),
+			5,
+			varint_encode(ENABLED),
+			true,
+			0,
+			varint_encode(MAINHAND_RIGHT),
+			false,
+			true
 	);
 	packet_send(&cip->_header);
 	packet_free(&cip->_header);
@@ -43,7 +43,7 @@ void handle_init_pos(void *packet) {
 	SynchronizePlayerPositionPacket *sync = packet;
 	MCVarInt *teleport_id = varint_encode(varint_decode(sync->teleport_id));
 	ConfirmTeleportationPacket *confirmation = confirm_teleportation_packet_new(teleport_id);
-    packet_send(&confirmation->_header);
+	packet_send(&confirmation->_header);
 	packet_free(&confirmation->_header);
 	cmc_log(INFO, "Confirmed teleportation.");
 
@@ -84,7 +84,7 @@ void handle_init_pos(void *packet) {
 }
 
 void handle_encryption(void *packet) {
-    cmc_log(INFO, "Encryption request received");
+	cmc_log(INFO, "Encryption request received");
 }
 
 
@@ -95,7 +95,7 @@ int main() {
 
 	char address[] = "localhost";
 	NetworkBuffer *address_buf = buffer_new();
-	buffer_write(address_buf, address, strlen(address));
+	buffer_write_little_endian(address_buf, address, strlen(address));
 	HandshakePacket *handshakePacket = handshake_pkt_new(
 			address_buf,
 			25565,
@@ -113,7 +113,7 @@ int main() {
 	packet_send(&loginStartPacket->_header);
 	packet_free(&loginStartPacket->_header);
 
-    cmc_log(INFO, "Login start");
+	cmc_log(INFO, "Login start");
 
 
 	register_handler(&print_status_response, STATUS_RESPONSE_PKT);

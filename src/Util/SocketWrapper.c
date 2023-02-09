@@ -48,7 +48,7 @@ SocketWrapper *connect_wrapper() {
 	server_address.sin_port = htons(25565);
 	server_address.sin_family = AF_INET;
 
-	cmc_log(DEBUG, "Trying to connect to port %d at ip %d", server_address.sin_port, INADDR_ANY);
+	cmc_log(DEBUG, "Trying to connect to port %d at ip %d", server_address.sin_port, INADDR_LOOPBACK);
 	int connection_status = connect(sock, (const struct sockaddr *) &server_address, sizeof server_address);
 
 	if (connection_status == -1) {
@@ -56,12 +56,12 @@ SocketWrapper *connect_wrapper() {
 		cmc_log(ERR, "Error code: %d", errno);
 		exit(EXIT_FAILURE);
 	}
-    server = socketWrapper;
+	server = socketWrapper;
 	return socketWrapper;
 }
 
 const SocketWrapper *get_socket() {
-    return server;
+	return server;
 }
 
 void send_wrapper(SocketWrapper *socket, void *bytes, size_t length) {
@@ -69,17 +69,17 @@ void send_wrapper(SocketWrapper *socket, void *bytes, size_t length) {
 	send(socket->socket, bytes, length, 0);
 #endif
 #if defined(__APPLE__) || defined(__linux__)
-	send(socket->socket, bytes, size, 0);
+	send(socket->socket, bytes, length, 0);
 #endif
 }
 
 int receive_wrapper(SocketWrapper *socket, void *bytes, size_t size) {
 #ifdef _WIN32
-    int response = recv(socket->socket, bytes, size, 0);
-    if (response == -1) {
-        cmc_log(ERR, "Error during receive: %d, check Winsock Error codes for more info.", WSAGetLastError());
-    }
-    return response;
+	int response = recv(socket->socket, bytes, size, 0);
+	if (response == -1) {
+		cmc_log(ERR, "Error during receive: %d, check Winsock Error codes for more info.", WSAGetLastError());
+	}
+	return response;
 #endif
 #if defined(__APPLE__) || defined(__linux__)
 	return recv(socket->socket, bytes, size, 0);
