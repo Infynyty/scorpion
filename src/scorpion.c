@@ -87,11 +87,36 @@ void handle_encryption(void *packet) {
 	cmc_log(INFO, "Encryption request received");
 }
 
+void get_status() {
+	char address[] = "localhost";
+	NetworkBuffer *address_buf = buffer_new();
+	buffer_write_little_endian(address_buf, address, strlen(address));
+	HandshakePacket *handshakePacket = handshake_pkt_new(
+			address_buf,
+			25565,
+			HANDSHAKE_STATUS
+	);
+	packet_send(&handshakePacket->_header);
+	packet_free(&handshakePacket->_header);
+
+	StatusRequestPacket *request = status_request_packet_new();
+	packet_send(&request->_header);
+	packet_free(&request->_header);
+
+	register_handler(&print_status_response, STATUS_RESPONSE_PKT);
+
+	ClientState *clientState = client_state_new();
+	handle_packets(get_socket(), clientState);
+
+}
+
 
 int main() {
 
 	SocketWrapper *socket_wrapper = connect_wrapper();
 	cmc_log(INFO, "Connected succesfully!");
+
+	get_status();
 
 	char address[] = "localhost";
 	NetworkBuffer *address_buf = buffer_new();
@@ -116,7 +141,6 @@ int main() {
 	cmc_log(INFO, "Login start");
 
 
-	register_handler(&print_status_response, STATUS_RESPONSE_PKT);
 	register_handler(&print_disconnect, DISCONNECT_PLAY_PKT);
 	register_handler(&handle_login_success, LOGIN_SUCCESS_PKT);
 	register_handler(&handle_login_play, LOGIN_PLAY_PKT);

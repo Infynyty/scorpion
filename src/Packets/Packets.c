@@ -453,28 +453,38 @@ GenericPacket *packet_receive() {
 // Empty: Used to receive a packet over the network. Optional elements? Optionals Array in packet header, where each optional
 // contains a bool ptr.
 
+void packet_generate_header(
+		PacketHeader *header,
+		PacketField type_array[],
+		uint8_t types_size,
+		uint8_t packet_id,
+		PacketDirection direction,
+		ConnectionState state
+) {
+	PacketField *types = malloc(types_size * sizeof(PacketField));
+	bool **optionals = calloc(types_size, sizeof(bool *));
+	memcpy(types, type_array, types_size * sizeof(PacketField));
+	MCVarInt *packet_id_enc = varint_encode(packet_id);
+
+	header->member_types = types;
+	header->members = types_size;
+	header->optionals = optionals;
+	header->packet_id = packet_id_enc;
+	header->direction = direction;
+	header->state = state;
+}
+
 HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, HandshakeNextState state) {
 	HandshakePacket *packet = malloc(sizeof(HandshakePacket));
-	uint8_t types_length = 4;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
-	PacketField typeArray[] = {
+	PacketHeader header = {};
+	PacketField fields[] = {
 			PKT_VARINT,
 			PKT_STRING,
 			PKT_UINT16,
 			PKT_VARINT
 	};
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = varint_encode(0x00);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = SERVERBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
+	packet_generate_header(&header, fields, 4, 0x00, SERVERBOUND, HANDSHAKE);
+	packet->_header = header;
 	packet->protocol_version = varint_encode(760);
 	packet->address = address;
 	packet->port = port;
@@ -484,41 +494,18 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 
 StatusRequestPacket *status_request_packet_new() {
 	StatusRequestPacket *packet = malloc(sizeof(StatusRequestPacket));
-	uint8_t types_length = 0;
-	PacketField *types = NULL;
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = SERVERBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
+	PacketHeader header = {};
+	packet_generate_header(&header, NULL, 0, 0x00, SERVERBOUND, STATUS);
+	packet->_header = header;
 	return packet;
 }
 
 StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	StatusResponsePacket *packet = malloc(sizeof(StatusResponsePacket));
-	uint8_t types_length = 1;
-	PacketField *types = malloc(1 * sizeof(PacketField));
-	PacketField typeArray[] = {
-			PKT_STRING
-	};
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = varint_encode(0x00);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
+	PacketHeader header = {};
+	PacketField fields[] = {PKT_STRING};
+	packet_generate_header(&header, fields, 1, 0x00, CLIENTBOUND, STATUS);
+	packet->_header = header;
 	packet->response = response;
 	return packet;
 }

@@ -123,7 +123,7 @@ static ServerState *serverState;
 
 //TODO: abstract method for packet receive using packet fields?
 void handle_packets(SocketWrapper *socket, ClientState *clientState) {
-    serverState = serverstate_new();
+	serverState = serverstate_new();
 	Packets packet_type;
 	ConnectionState connectionState = STATUS;
 
@@ -144,9 +144,7 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 				switch (generic_packet->packet_id) {
 					case STATUS_RESPONSE: {
 						StatusResponsePacket *packet = status_response_packet_new(NULL);
-						NetworkBuffer *response = buffer_new();
-						buffer_receive_string(response, socket);
-						packet->response = response;
+						packet_decode(&packet->_header, generic_packet->data);
 						packet_event(STATUS_RESPONSE_PKT, &(packet->_header));
 						break;
 					}
@@ -163,18 +161,18 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						EncryptionRequestPacket *packet = encryption_request_packet_new(NULL, NULL, NULL);
 						packet_decode(&packet->_header, generic_packet->data);
 
-                        serverState->public_key = packet->public_key;
-                        serverState->verify_token = packet->verify_token;
+						serverState->public_key = packet->public_key;
+						serverState->verify_token = packet->verify_token;
 
-                        NetworkBuffer *secret = buffer_new();
-                        EncryptionResponsePacket *response = encryption_response_generate(
-                                packet->public_key,
-                                packet->verify_token,
-                                secret
-                                );
-                        packet_send(&response->_header);
-                        init_encryption(secret);
-                        buffer_free(secret);
+						NetworkBuffer *secret = buffer_new();
+						EncryptionResponsePacket *response = encryption_response_generate(
+								packet->public_key,
+								packet->verify_token,
+								secret
+						);
+						packet_send(&response->_header);
+						init_encryption(secret);
+						buffer_free(secret);
 
 						packet_event(ENCRYPTION_REQUEST_PKT, &packet->_header);
 						break;
@@ -205,7 +203,7 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						}
 
 						LoginSuccessPacket *packet = login_success_packet_new(
-                                uuid, username, varint_encode(no_of_properties), properties_array
+								uuid, username, varint_encode(no_of_properties), properties_array
 						);
 //                        packet_decode(&packet->_header);
 						packet_event(LOGIN_SUCCESS_PKT, &packet->_header);
@@ -308,6 +306,6 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 				return;
 		}
 	}
-    serverstate_free(serverState);
+	serverstate_free(serverState);
 }
 

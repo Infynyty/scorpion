@@ -118,7 +118,7 @@ void buffer_receive_string(NetworkBuffer *buffer, SocketWrapper *socket) {
 }
 
 void buffer_print_string(NetworkBuffer *buffer) {
-	printf("%s", buffer->bytes);
+	cmc_log(INFO, "%s", buffer->bytes);
 }
 
 int32_t buffer_read_varint(NetworkBuffer *buffer) {
@@ -143,12 +143,12 @@ void buffer_read_array(NetworkBuffer *src, NetworkBuffer *dest) {
 }
 
 NetworkBuffer *buffer_read_string(NetworkBuffer *buffer) {
-    NetworkBuffer *string = buffer_new();
-    int32_t length = buffer_read_varint(buffer);
-    uint8_t temp[length];
-    buffer_poll(buffer, length, temp);
-    buffer_write_little_endian(string, temp, length);
-    return string;
+	NetworkBuffer *string = buffer_new();
+	int32_t length = buffer_read_varint(buffer);
+	uint8_t temp[length];
+	buffer_poll(buffer, length, temp);
+	buffer_write_little_endian(string, temp, length);
+	return string;
 }
 
 void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length) {

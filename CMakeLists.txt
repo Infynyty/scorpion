@@ -16,6 +16,8 @@ add_executable(scorpion
         src/Packets/PacketHandler.h
         src/Packets/Packets.c
         src/Packets/Packets.h
+        src/Packets/Encryption.c
+        src/Packets/Encryption.h
         src/State/ClientState.c
         src/State/ClientState.h
         src/State/PlayState.c
