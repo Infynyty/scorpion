@@ -124,6 +124,7 @@ static EVP_CIPHER_CTX *ctx_encrypt;
 static EVP_CIPHER_CTX *ctx_decrypt;
 
 void init_encryption(NetworkBuffer *shared_secret) {
+	cmc_log(INFO, "Enabled encryption");
 	encrpytion_enabled = true;
 	ctx_encrypt = EVP_CIPHER_CTX_new();
 	ctx_decrypt = EVP_CIPHER_CTX_new();
@@ -165,12 +166,12 @@ NetworkBuffer *packet_encode(PacketHeader *header) {
 				case PKT_VARLONG:
 					//TODO: Fill in
 					break;
-				case PKT_BYTEARRAY:
 				case PKT_UUID: {
 					NetworkBuffer *uuid = *((NetworkBuffer **) current_byte);
 					buffer_write(buffer, uuid->bytes, uuid->size);
 					break;
 				}
+				case PKT_BYTEARRAY:
 				case PKT_STRING: {
 					NetworkBuffer *string = *((NetworkBuffer **) current_byte);
 					MCVarInt *length = varint_encode(string->size);
@@ -485,7 +486,7 @@ HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, 
 	};
 	packet_generate_header(&header, fields, 4, 0x00, SERVERBOUND, HANDSHAKE);
 	packet->_header = header;
-	packet->protocol_version = varint_encode(760);
+	packet->protocol_version = varint_encode(761);
 	packet->address = address;
 	packet->port = port;
 	packet->next_state = varint_encode(state);
@@ -512,72 +513,49 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 
 LoginStartPacket *login_start_packet_new(
 		NetworkBuffer *player_name,
-		bool has_sig_data,
 		bool has_player_uuid,
 		NetworkBuffer *uuid
 ) {
 	LoginStartPacket *packet = malloc(sizeof(LoginStartPacket));
-	uint8_t types_length = 7;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
-	PacketField typeArray[] = {
-			PKT_STRING,
-			PKT_BOOL,
-			PKT_UINT64,
-			PKT_BYTEARRAY,
-			PKT_BYTEARRAY,
-			PKT_BOOL,
-			PKT_UUID
-	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	if (!has_sig_data) {
-		optionals[2] = &packet->has_sig_data;
-		optionals[3] = &packet->has_sig_data;
-		optionals[4] = &packet->has_sig_data;
-	}
-	if (!has_player_uuid) {
-		optionals[6] = &packet->has_player_uuid;
-	}
-	MCVarInt *packet_id = varint_encode(0x00);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
+    PacketHeader header = {};
+    PacketField typeArray[] = {
+            PKT_STRING,
+            PKT_BOOL,
+            PKT_UUID
+    };
+    packet_generate_header(&header, typeArray, 3, 0x00, SERVERBOUND, LOGIN);
+	packet->_header = header;
 	packet->player_name = player_name;
-	packet->has_sig_data = has_sig_data;
 	packet->has_player_uuid = has_player_uuid;
 	packet->uuid = uuid;
 	return packet;
 }
 
+DisconnectLoginPacket *disconnect_login_packet_new(NetworkBuffer *reason) {
+	DisconnectLoginPacket *packet = malloc(sizeof(DisconnectLoginPacket));
+	PacketHeader header = {};
+	PacketField fields[] = {
+			PKT_STRING
+	};
+	packet_generate_header(&header, fields, 1, 0x00, CLIENTBOUND, LOGIN);
+	packet->_header = header;
+	packet->reason = reason;
+	return packet;
+}
+
 EncryptionResponsePacket *encryption_response_packet_new(
 		NetworkBuffer *shared_secret,
-		bool has_verify_token,
-		NetworkBuffer *verify_token,
-		uint64_t salt,
-		NetworkBuffer *message_signature
+		NetworkBuffer *verify_token
 ) {
 	EncryptionResponsePacket *packet = malloc(sizeof(EncryptionResponsePacket));
-	uint8_t types_length = 3;
+	uint8_t types_length = 2;
 	PacketField *types = malloc(types_length * sizeof(PacketField));
 	PacketField typeArray[] = {
 			PKT_BYTEARRAY,
-			PKT_BOOL,
-			PKT_BYTEARRAY,
-			PKT_UINT64,
 			PKT_BYTEARRAY
 	};
 	memcpy(types, typeArray, types_length * sizeof(PacketField));
 	bool **optionals = calloc(types_length, sizeof(bool *));
-
-	optionals[2] = &packet->has_verify_token;
-	optionals[3] = &packet->_has_no_verify_token;
-	optionals[4] = &packet->_has_no_verify_token;
 
 	MCVarInt *packet_id = varint_encode(0x01);
 	PacketHeader wrapper = {
@@ -592,11 +570,7 @@ EncryptionResponsePacket *encryption_response_packet_new(
 
 	packet->_header = wrapper;
 	packet->shared_secret = shared_secret;
-	packet->has_verify_token = has_verify_token;
 	packet->verify_token = verify_token;
-	packet->_has_no_verify_token = !has_verify_token;
-	packet->salt = salt;
-	packet->message_signature = message_signature;
 	return packet;
 }
 

@@ -16,6 +16,11 @@ void print_disconnect(void *packet) {
 	cmc_log(INFO, "Disconnected: %s", reason->reason->bytes);
 }
 
+void print_disconnect_login(void *packet) {
+	DisconnectLoginPacket *reason = packet;
+	cmc_log(INFO, "Disconnected: %s", reason->reason->bytes);
+}
+
 void handle_login_success(void *packet) {
 	LoginSuccessPacket *success = packet;
 	cmc_log(INFO, "Logged in with username %s.", success->username->bytes);
@@ -116,7 +121,6 @@ int main() {
 	SocketWrapper *socket_wrapper = connect_wrapper();
 	cmc_log(INFO, "Connected succesfully!");
 
-	get_status();
 
 	char address[] = "localhost";
 	NetworkBuffer *address_buf = buffer_new();
@@ -134,7 +138,7 @@ int main() {
 	uint64_t high = 0;
 	buffer_write(uuid, &low, sizeof(uint64_t));
 	buffer_write(uuid, &high, sizeof(uint64_t));
-	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), false, true, uuid);
+	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), true, uuid);
 	packet_send(&loginStartPacket->_header);
 	packet_free(&loginStartPacket->_header);
 
@@ -142,10 +146,10 @@ int main() {
 
 
 	register_handler(&print_disconnect, DISCONNECT_PLAY_PKT);
+	register_handler(&print_disconnect_login, LOGIN_DISCONNECT_PKT);
 	register_handler(&handle_login_success, LOGIN_SUCCESS_PKT);
 	register_handler(&handle_login_play, LOGIN_PLAY_PKT);
 	register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
-	register_handler(&handle_encryption, ENCRYPTION_REQUEST_PKT);
 
 
 	ClientState *clientState = client_state_new();

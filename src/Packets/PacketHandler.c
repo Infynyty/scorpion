@@ -125,7 +125,7 @@ static ServerState *serverState;
 void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 	serverState = serverstate_new();
 	Packets packet_type;
-	ConnectionState connectionState = STATUS;
+	ConnectionState connectionState = LOGIN;
 
 	while (true) {
 		GenericPacket *generic_packet = packet_receive();
@@ -156,6 +156,11 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 
 			case LOGIN:
 				switch (generic_packet->packet_id) {
+					case DISCONNECT_LOGIN: {
+						DisconnectLoginPacket *packet = disconnect_login_packet_new(NULL);
+						packet_decode(&packet->_header, generic_packet->data);
+						packet_event(LOGIN_DISCONNECT_PKT, &packet->_header);
+					}
 					case ENCRYPTION_REQUEST_ID: {
 						cmc_log(INFO, "Received encryption request.");
 						EncryptionRequestPacket *packet = encryption_request_packet_new(NULL, NULL, NULL);
@@ -171,7 +176,8 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 								secret
 						);
 						packet_send(&response->_header);
-						init_encryption(secret);
+						cmc_log(INFO, "Sent encryption response.");
+						//init_encryption(secret);
 						buffer_free(secret);
 
 						packet_event(ENCRYPTION_REQUEST_PKT, &packet->_header);

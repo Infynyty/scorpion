@@ -110,17 +110,12 @@ struct PingRequestPacket {
 typedef struct __attribute__((__packed__)) LoginStartPacket {
 	PacketHeader _header;
 	NetworkBuffer *player_name;
-	bool has_sig_data;
-	uint64_t timestamp;
-	NetworkBuffer *public_key;
-	NetworkBuffer *signature;
 	bool has_player_uuid;
 	NetworkBuffer *uuid;
 } LoginStartPacket;
 
 LoginStartPacket *login_start_packet_new(
 		NetworkBuffer *player_name,
-		bool has_sig_data,
 		bool has_player_uuid,
 		NetworkBuffer *uuid
 );
@@ -128,22 +123,22 @@ LoginStartPacket *login_start_packet_new(
 typedef struct __attribute__((__packed__)) EncryptionResponsePacket {
 	PacketHeader _header;
 	NetworkBuffer *shared_secret;
-	bool has_verify_token;
 	NetworkBuffer *verify_token;
-	bool _has_no_verify_token;
-	uint64_t salt;
-	NetworkBuffer *message_signature;
 } EncryptionResponsePacket;
 
 EncryptionResponsePacket *encryption_response_packet_new(
 		NetworkBuffer *shared_secret,
-		bool has_verify_token,
-		NetworkBuffer *verify_token,
-		uint64_t salt,
-		NetworkBuffer *message_signature
+		NetworkBuffer *verify_token
 );
 
 /** Clientbound **/
+
+typedef struct __attribute__((__packed__)) DisconnectLoginPacket {
+	PacketHeader _header;
+	NetworkBuffer *reason;
+} DisconnectLoginPacket;
+
+DisconnectLoginPacket *disconnect_login_packet_new(NetworkBuffer *reason);
 
 typedef struct __attribute__((__packed__)) EncryptionRequestPacket {
 	PacketHeader _header;
