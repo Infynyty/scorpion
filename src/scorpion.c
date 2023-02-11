@@ -96,11 +96,7 @@ void get_status() {
 	char address[] = "localhost";
 	NetworkBuffer *address_buf = buffer_new();
 	buffer_write_little_endian(address_buf, address, strlen(address));
-	HandshakePacket *handshakePacket = handshake_pkt_new(
-			address_buf,
-			25565,
-			HANDSHAKE_STATUS
-	);
+	HandshakePacket *handshakePacket = handshake_pkt_header();
 	packet_send(&handshakePacket->_header);
 	packet_free(&handshakePacket->_header);
 
@@ -125,22 +121,29 @@ int main() {
 	char address[] = "localhost";
 	NetworkBuffer *address_buf = buffer_new();
 	buffer_write_little_endian(address_buf, address, strlen(address));
-	HandshakePacket *handshakePacket = handshake_pkt_new(
-			address_buf,
-			25565,
-			HANDSHAKE_LOGIN
-	);
-	packet_send(&handshakePacket->_header);
-	packet_free(&handshakePacket->_header);
+	HandshakePacket handshakePacket = {
+            ._header = handshake_pkt_header(),
+            .protocol_version = varint_encode(761),
+            .port = 25565,
+            .address = address_buf,
+            .next_state = varint_encode(2)
+    };
+	packet_send(&handshakePacket._header);
+	packet_free(&handshakePacket._header);
 
 	NetworkBuffer *uuid = buffer_new();
 	uint64_t low = 0;
 	uint64_t high = 0;
 	buffer_write(uuid, &low, sizeof(uint64_t));
 	buffer_write(uuid, &high, sizeof(uint64_t));
-	LoginStartPacket *loginStartPacket = login_start_packet_new(string_buffer_new("Infy"), true, uuid);
-	packet_send(&loginStartPacket->_header);
-	packet_free(&loginStartPacket->_header);
+    LoginStartPacket start = {
+            ._header = login_start_packet_header(),
+            .player_name = string_buffer_new("Infy"),
+            .has_player_uuid = true,
+            .uuid = uuid
+    };
+    packet_send(&start._header);
+    packet_free(&start._header);
 
 	cmc_log(INFO, "Login start");
 

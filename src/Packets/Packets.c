@@ -34,11 +34,11 @@ uint8_t get_types_size(PacketField type) {
 	}
 }
 
-void packet_free(PacketHeader *packet) {
-	void *ptr = packet + 1;
-	for (int i = 0; i < packet->members; ++i) {
-		PacketField m_type = packet->member_types[i];
-		bool *optional_present = packet->optionals[i];
+void packet_free(PacketHeader **packet) {
+    void *ptr = ((PacketHeader **) (packet)) + 1;
+	for (int i = 0; i < (*packet)->members; ++i) {
+		PacketField m_type = (*packet)->member_types[i];
+		bool *optional_present = (*packet)->optionals[i];
 		if (optional_present != NULL && !*optional_present) {
 			ptr = (void *) ptr;
 			ptr += get_types_size(m_type);
@@ -74,20 +74,6 @@ void packet_free(PacketHeader *packet) {
 				ptr = string;
 				break;
 			}
-//            case PKT_ARRAY: {
-//                MCVarInt **varInt = (MCVarInt **) ptr;
-//                uint32_t size = varint_decode(get_bytes(*varInt));
-//                free(*varInt);
-//                varInt++;
-//                ptr = varInt;
-//                for (int j = 0; j < size; ++j) {
-//                    NetworkBuffer **string = (NetworkBuffer **) ptr;
-//                    buffer_free(*string);
-//                    string++;
-//                    ptr = string;
-//                }
-//                break;
-//            }
 			case PKT_VARLONG:
 			case PKT_IDENTIFIER:
 			case PKT_ENTITYMETA:
@@ -101,31 +87,30 @@ void packet_free(PacketHeader *packet) {
 		}
 	}
 
-	free(packet->optionals);
-	free(packet->member_types);
-	free(packet->packet_id);
-	free(packet);
+	free((*packet)->optionals);
+	free((*packet)->member_types);
+	free((*packet)->packet_id);
+	free((*packet));
 }
 
 static bool compression_enabled = false;
 static int32_t compression_threshold = 0;
 
-void set_compression(bool is_enabled) {
-	compression_enabled = is_enabled;
-}
-
 void set_compression_threshold(int32_t threshold) {
 	compression_threshold = threshold;
+    if (threshold > 0) {
+        compression_enabled = true;
+    }
 }
 
-static bool encrpytion_enabled = false;
+static bool encryption_enabled = false;
 
 static EVP_CIPHER_CTX *ctx_encrypt;
 static EVP_CIPHER_CTX *ctx_decrypt;
 
 void init_encryption(NetworkBuffer *shared_secret) {
 	cmc_log(INFO, "Enabled encryption");
-	encrpytion_enabled = true;
+    encryption_enabled = true;
 	ctx_encrypt = EVP_CIPHER_CTX_new();
 	ctx_decrypt = EVP_CIPHER_CTX_new();
 	EVP_CIPHER_CTX_init(ctx_encrypt);
@@ -139,14 +124,14 @@ void init_encryption(NetworkBuffer *shared_secret) {
 
 /** Send **/
 
-NetworkBuffer *packet_encode(PacketHeader *header) {
+NetworkBuffer *packet_encode(PacketHeader **header) {
 	NetworkBuffer *buffer = buffer_new();
-	void *current_byte = header + 1;
-	buffer_write_little_endian(buffer, header->packet_id->bytes, header->packet_id->size);
-	for (int i = 0; i < header->members; ++i) {
-		PacketField m_type = header->member_types[i];
+	void *current_byte = ((PacketHeader **) (header)) + 1;
+	buffer_write_little_endian(buffer, (*header)->packet_id->bytes, (*header)->packet_id->size);
+	for (int i = 0; i < (*header)->members; ++i) {
+		PacketField m_type = (*header)->member_types[i];
 
-		bool *is_optional = header->optionals[i];
+		bool *is_optional = (*header)->optionals[i];
 		if (is_optional == NULL || *is_optional) {
 			switch (m_type) {
 				case PKT_BOOL:
@@ -232,7 +217,7 @@ NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
 	return encrypted;
 }
 
-void packet_send(PacketHeader *header) {
+void packet_send(PacketHeader **header) {
 	NetworkBuffer *packet = packet_encode(header);
 	if (compression_enabled && compression_threshold > 0) {
 		packet = packet_compress(packet);
@@ -244,7 +229,7 @@ void packet_send(PacketHeader *header) {
 		buffer_free(packet);
 		packet = length_prefixed;
 	}
-	if (encrpytion_enabled) {
+	if (encryption_enabled) {
 		packet = packet_encrypt(packet);
 	}
 	send_wrapper(get_socket(), packet->bytes, packet->size);
@@ -252,7 +237,7 @@ void packet_send(PacketHeader *header) {
 
 /** Receive **/
 
-void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
+void packet_decode(PacketHeader *header, NetworkBuffer *generic_packet) {
 	void *ptr = header + 1;
 	for (int i = 0; i < header->members; ++i) {
 		PacketField field = header->member_types[i];
@@ -266,66 +251,66 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 			case PKT_BOOL:
 			case PKT_BYTE:
 			case PKT_UINT8: {
-				uint8_t uint8 = buffer_read(uint8_t, packet);
+				uint8_t uint8 = buffer_read(uint8_t, generic_packet);
 				variable_pointer = &uint8;
 				variable_size = sizeof(uint8_t);
 				break;
 			}
 			case PKT_UINT16: {
-				uint16_t uint16 = buffer_read(uint16_t, packet);
+				uint16_t uint16 = buffer_read(uint16_t, generic_packet);
 				variable_pointer = &uint16;
 				variable_size = sizeof(uint16_t);
 				break;
 			}
 			case PKT_UINT32: {
-				uint32_t uint32 = buffer_read(uint32_t, packet);
+				uint32_t uint32 = buffer_read(uint32_t, generic_packet);
 				variable_pointer = &uint32;
 				variable_size = sizeof(uint32_t);
 				break;
 			}
 			case PKT_UINT64: {
-				uint64_t uint64 = buffer_read(uint64_t, packet);
+				uint64_t uint64 = buffer_read(uint64_t, generic_packet);
 				variable_pointer = &uint64;
 				variable_size = sizeof(uint64_t);
 				break;
 			}
 			case PKT_FLOAT: {
-				float number = buffer_read(float, packet);
+				float number = buffer_read(float, generic_packet);
 				variable_pointer = &number;
 				variable_size = sizeof(float);
 				break;
 			}
 			case PKT_DOUBLE: {
-				double number = buffer_read(double, packet);
+				double number = buffer_read(double, generic_packet);
 				variable_pointer = &number;
 				variable_size = sizeof(double);
 				break;
 			}
 			case PKT_VARINT: {
-				MCVarInt *var_int = varint_encode(buffer_read_varint(packet));
+				MCVarInt *var_int = varint_encode(buffer_read_varint(generic_packet));
 				variable_pointer = &var_int;
 				variable_size = sizeof(MCVarInt *);
 				break;
 			}
 			case PKT_UUID: {
 				NetworkBuffer *uuid = buffer_new();
-				buffer_poll(packet, 2 * sizeof(uint64_t), uuid);
+				buffer_poll(generic_packet, 2 * sizeof(uint64_t), uuid);
 				variable_pointer = &uuid;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
 			case PKT_BYTEARRAY: {
 				NetworkBuffer *bytes = buffer_new();
-				buffer_read_array(packet, bytes);
+				buffer_read_array(generic_packet, bytes);
 				variable_pointer = &bytes;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
 			case PKT_STRING_ARRAY: {
 				NetworkBuffer *strings = buffer_new();
-				uint32_t length = buffer_read_varint(packet);
+				uint32_t length = buffer_read_varint(generic_packet);
 				for (int j = 0; j < length; ++j) {
-					buffer_read_array(packet, strings);
+					buffer_read_array(generic_packet, strings);
 				}
 				variable_pointer = &strings;
 				variable_size = sizeof(NetworkBuffer *);
@@ -333,13 +318,13 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 			}
 			case PKT_STRING: {
 				NetworkBuffer *string = buffer_new();
-				buffer_read_array(packet, string);
+				buffer_read_array(generic_packet, string);
 				variable_pointer = &string;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
 			case PKT_NBTTAG: {
-				cmc_log(ERR, "Tried receiving unhandled packet field %d", field);
+				cmc_log(ERR, "Tried receiving unhandled generic_packet field %d", field);
 				exit(EXIT_FAILURE);
 				NetworkBuffer *nbt = buffer_new();
 				consume_nbt_data(get_socket());
@@ -356,7 +341,7 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 			case PKT_ARRAY:
 			case PKT_ENUM:
 			default:
-				cmc_log(ERR, "Tried receiving unhandled packet field %d", field);
+				cmc_log(ERR, "Tried receiving unhandled generic_packet field %d", field);
 				exit(EXIT_FAILURE);
 		}
 		memcpy(ptr, variable_pointer, variable_size);
@@ -367,7 +352,7 @@ void packet_decode(PacketHeader *header, NetworkBuffer *packet) {
 uint8_t receive_byte() {
 	unsigned char byte;
 	receive_wrapper(get_socket(), &byte, sizeof(byte));
-	if (encrpytion_enabled) {
+	if (encryption_enabled) {
 		int32_t outlen;
 		unsigned char out;
 		if (!EVP_DecryptUpdate(ctx_decrypt, &out, &outlen, &byte, sizeof(byte))) {
@@ -475,22 +460,16 @@ void packet_generate_header(
 	header->state = state;
 }
 
-HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, HandshakeNextState state) {
-	HandshakePacket *packet = malloc(sizeof(HandshakePacket));
-	PacketHeader header = {};
+PacketHeader * handshake_pkt_header() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField fields[] = {
 			PKT_VARINT,
 			PKT_STRING,
 			PKT_UINT16,
 			PKT_VARINT
 	};
-	packet_generate_header(&header, fields, 4, 0x00, SERVERBOUND, HANDSHAKE);
-	packet->_header = header;
-	packet->protocol_version = varint_encode(761);
-	packet->address = address;
-	packet->port = port;
-	packet->next_state = varint_encode(state);
-	return packet;
+	packet_generate_header(header, fields, 4, 0x00, SERVERBOUND, HANDSHAKE);
+	return header;
 }
 
 StatusRequestPacket *status_request_packet_new() {
@@ -511,24 +490,15 @@ StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
 	return packet;
 }
 
-LoginStartPacket *login_start_packet_new(
-		NetworkBuffer *player_name,
-		bool has_player_uuid,
-		NetworkBuffer *uuid
-) {
-	LoginStartPacket *packet = malloc(sizeof(LoginStartPacket));
-    PacketHeader header = {};
+PacketHeader *login_start_packet_header() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_STRING,
             PKT_BOOL,
             PKT_UUID
     };
-    packet_generate_header(&header, typeArray, 3, 0x00, SERVERBOUND, LOGIN);
-	packet->_header = header;
-	packet->player_name = player_name;
-	packet->has_player_uuid = has_player_uuid;
-	packet->uuid = uuid;
-	return packet;
+    packet_generate_header(header, typeArray, 3, 0x00, SERVERBOUND, LOGIN);
+	return header;
 }
 
 DisconnectLoginPacket *disconnect_login_packet_new(NetworkBuffer *reason) {
@@ -604,6 +574,16 @@ EncryptionRequestPacket *encryption_request_packet_new(
 	packet->public_key = public_key;
 	packet->verify_token = verify_token;
 	return packet;
+}
+
+SetCompressionPacket *set_compression_packet_new(MCVarInt *threshold) {
+    SetCompressionPacket *packet = malloc(sizeof(SetCompressionPacket));
+    PacketHeader header = {};
+    PacketField types[] = {PKT_VARINT};
+    packet_generate_header(&header, types, 1, 0x03, CLIENTBOUND, LOGIN);
+    packet->_header = header;
+    packet->threshold = threshold;
+    return packet;
 }
 
 // TODO: implement arrays

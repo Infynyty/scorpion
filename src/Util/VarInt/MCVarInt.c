@@ -92,7 +92,7 @@ int varint_receive(SocketWrapper *socket) {
 	return result;
 }
 
-uint32_t varint_decode(unsigned char *buffer) {
+int32_t varint_decode(unsigned char *buffer) {
 	unsigned char current_byte = 0;
 	int result = 0;
 	const int CONTINUE_BIT = 0b10000000;

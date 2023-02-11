@@ -1,0 +1,8 @@
+//
+// Created by Kasimir Stadie on 11.02.23.
+//
+
+#ifndef SCORPION_AUTHENTICATION_H
+#define SCORPION_AUTHENTICATION_H
+
+#endif //SCORPION_AUTHENTICATION_H

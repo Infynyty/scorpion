@@ -44,15 +44,13 @@ typedef struct {
  * @param header The header of the packet struct that will be sent.
  *
  */
-void packet_send(PacketHeader *header);
+void packet_send(PacketHeader **header);
 
 GenericPacket *packet_receive();
 
-void packet_decode(PacketHeader *header, NetworkBuffer *packet);
+void packet_decode(PacketHeader *header, NetworkBuffer *generic_packet);
 
-void packet_free(PacketHeader *packet);
-
-void set_compression(bool is_enabled);
+void packet_free(PacketHeader **packet);
 
 void set_compression_threshold(int32_t threshold);
 
@@ -67,14 +65,14 @@ typedef enum HandshakeNextState {
 } HandshakeNextState;
 
 typedef struct __attribute__((__packed__)) HandshakePacket {
-	PacketHeader _header;
+	PacketHeader *_header;
 	MCVarInt *protocol_version;
 	NetworkBuffer *address;
 	unsigned short port;
 	MCVarInt *next_state;
 } HandshakePacket;
 
-HandshakePacket *handshake_pkt_new(NetworkBuffer *address, unsigned short port, HandshakeNextState state);
+PacketHeader * handshake_pkt_header();
 
 
 /** State: Status **/
@@ -108,17 +106,13 @@ struct PingRequestPacket {
 /** Serverbound **/
 
 typedef struct __attribute__((__packed__)) LoginStartPacket {
-	PacketHeader _header;
+	PacketHeader *_header;
 	NetworkBuffer *player_name;
 	bool has_player_uuid;
 	NetworkBuffer *uuid;
 } LoginStartPacket;
 
-LoginStartPacket *login_start_packet_new(
-		NetworkBuffer *player_name,
-		bool has_player_uuid,
-		NetworkBuffer *uuid
-);
+PacketHeader *login_start_packet_header();
 
 typedef struct __attribute__((__packed__)) EncryptionResponsePacket {
 	PacketHeader _header;
@@ -157,6 +151,8 @@ typedef struct __attribute__((__packed__)) SetCompressionPacket {
 	PacketHeader _header;
 	MCVarInt *threshold;
 } SetCompressionPacket;
+
+SetCompressionPacket *set_compression_packet_new(MCVarInt *threshold);
 
 
 typedef struct __attribute__((__packed__)) LoginSuccessPacket {

@@ -184,41 +184,22 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						break;
 					}
 					case LOGIN_SUCCESS_ID: {
+                        LoginSuccessPacket *packet = login_success_packet_new( NULL, NULL, NULL, NULL);
+                        packet_decode(&packet->_header, generic_packet->data);
 						cmc_log(DEBUG, "Received Login Success Packet.");
 						connectionState = PLAY;
 						cmc_log(DEBUG, "Switched connection state to PLAY.");
 
-						NetworkBuffer *uuid = buffer_new();
-						buffer_receive(uuid, socket, sizeof(uint64_t) * 2);
-
-						NetworkBuffer *username = buffer_new();
-						buffer_receive_string(username, socket);
-
-						uint32_t no_of_properties = varint_receive(socket);
-
-						NetworkBuffer *properties_array = buffer_new();
-						for (int i = 0; i < no_of_properties; ++i) {
-							buffer_receive_string(properties_array, socket);
-							buffer_receive_string(properties_array, socket);
-							bool is_signed = buffer_receive_type(uint8_t);
-							buffer_write(properties_array, &is_signed, sizeof(is_signed));
-
-							if (is_signed) {
-								buffer_receive_string(properties_array, socket);
-							}
-						}
-
-						LoginSuccessPacket *packet = login_success_packet_new(
-								uuid, username, varint_encode(no_of_properties), properties_array
-						);
-//                        packet_decode(&packet->_header);
 						packet_event(LOGIN_SUCCESS_PKT, &packet->_header);
 						break;
 					}
 					case SET_COMPRESSION_ID: {
-						//TODO: implement packet
+						SetCompressionPacket *packet = set_compression_packet_new(NULL);
+                        packet_decode(&packet->_header, generic_packet->data);
+
+                        set_compression_threshold(varint_decode(packet->threshold->bytes));
 						cmc_log(INFO, "Enabled compression.");
-						set_compression(true);
+
 						break;
 					}
 					default:

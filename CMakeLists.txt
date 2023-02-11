@@ -42,12 +42,14 @@ add_executable(scorpion
         src/Util/NetworkBuffer.h
         src/Util/SocketWrapper.c
         src/Util/SocketWrapper.h
-        src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h)
+        src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h)
 
 find_package(ZLIB)
 target_link_libraries(scorpion ZLIB::ZLIB)
 find_package(OpenSSL REQUIRED)
 target_link_libraries(scorpion OpenSSL::SSL)
+find_package(CURL REQUIRED)
+target_link_libraries(scorpion CURL::libcurl)
 
 if (WIN32)
     target_link_libraries(scorpion wsock32 ws2_32)

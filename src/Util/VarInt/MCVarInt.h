@@ -24,6 +24,6 @@ unsigned char get_length(MCVarInt *varInt);
 
 int varint_receive(SocketWrapper *socket);
 
-uint32_t varint_decode(unsigned char *buffer);
+int32_t varint_decode(unsigned char *buffer);
 
 #endif //CMC_MCVARINT_H
