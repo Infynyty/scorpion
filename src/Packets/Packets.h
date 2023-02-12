@@ -15,7 +15,7 @@ typedef enum PacketField {
 	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_FLOAT,
 	PKT_DOUBLE, PKT_STRING, PKT_CHAT, PKT_IDENTIFIER, PKT_VARINT, PKT_VARLONG,
 	PKT_ENTITYMETA, PKT_SLOT, PKT_NBTTAG, PKT_OPTIONAL, PKT_ARRAY, PKT_ENUM,
-	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY
+	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY, PKT_LOGIN_PROPERTIES
 } PacketField;
 
 typedef struct GenericPacket {
@@ -26,6 +26,8 @@ typedef struct GenericPacket {
 	uint8_t packet_id;
 	NetworkBuffer *data;
 } GenericPacket;
+
+void generic_packet_free(GenericPacket *packet);
 
 typedef struct {
 	uint8_t members;
@@ -48,7 +50,7 @@ void packet_send(PacketHeader **header);
 
 GenericPacket *packet_receive();
 
-void packet_decode(PacketHeader *header, NetworkBuffer *generic_packet);
+void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet);
 
 void packet_free(PacketHeader **packet);
 
@@ -80,20 +82,21 @@ PacketHeader * handshake_pkt_header();
 /** Serverbound **/
 
 typedef struct StatusRequestPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 } StatusRequestPacket;
 
-StatusRequestPacket *status_request_packet_new();
+PacketHeader * status_request_packet_new();
 
 typedef struct StatusResponsePacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	NetworkBuffer *response;
 } StatusResponsePacket;
 
-StatusResponsePacket *status_response_packet_new(NetworkBuffer *response);
+PacketHeader * status_response_packet_new();
 
 struct PingRequestPacket {
-	MCVarInt *packetID;
+    PacketHeader *_header;
+    MCVarInt *packetID;
 	uint64_t *payload;
 };
 
@@ -115,74 +118,62 @@ typedef struct __attribute__((__packed__)) LoginStartPacket {
 PacketHeader *login_start_packet_header();
 
 typedef struct __attribute__((__packed__)) EncryptionResponsePacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	NetworkBuffer *shared_secret;
 	NetworkBuffer *verify_token;
 } EncryptionResponsePacket;
 
-EncryptionResponsePacket *encryption_response_packet_new(
-		NetworkBuffer *shared_secret,
-		NetworkBuffer *verify_token
-);
+PacketHeader *encryption_response_packet_new();
 
 /** Clientbound **/
 
 typedef struct __attribute__((__packed__)) DisconnectLoginPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	NetworkBuffer *reason;
 } DisconnectLoginPacket;
 
-DisconnectLoginPacket *disconnect_login_packet_new(NetworkBuffer *reason);
+PacketHeader *disconnect_login_packet_new();
 
 typedef struct __attribute__((__packed__)) EncryptionRequestPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	NetworkBuffer *server_id;
 	NetworkBuffer *public_key;
 	NetworkBuffer *verify_token;
 } EncryptionRequestPacket;
 
-EncryptionRequestPacket *encryption_request_packet_new(
-		NetworkBuffer *server_id,
-		NetworkBuffer *public_key,
-		NetworkBuffer *verify_token
-);
+PacketHeader * encryption_request_packet_new();
 
 typedef struct __attribute__((__packed__)) SetCompressionPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	MCVarInt *threshold;
 } SetCompressionPacket;
 
-SetCompressionPacket *set_compression_packet_new(MCVarInt *threshold);
+PacketHeader * set_compression_packet_new();
 
 
 typedef struct __attribute__((__packed__)) LoginSuccessPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	NetworkBuffer *uuid;
 	NetworkBuffer *username;
 	MCVarInt *number_of_properties;
 	NetworkBuffer *properties;
 } LoginSuccessPacket;
 
-LoginSuccessPacket *login_success_packet_new(
-		NetworkBuffer *uuid,
-		NetworkBuffer *username,
-		MCVarInt *number_of_properties,
-		NetworkBuffer *properties
-);
+PacketHeader * login_success_packet_new();
 
 /** State: Play **/
 
 /** Serverbound **/
 
 typedef struct __attribute__((__packed__)) ConfirmTeleportationPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	MCVarInt *teleport_id;
 } ConfirmTeleportationPacket;
 
-ConfirmTeleportationPacket *confirm_teleportation_packet_new(MCVarInt *teleport_id);
+PacketHeader *confirm_teleportation_packet_new();
 
 typedef enum ChatMode {
-	ENABLED = 0, COMMANDS_ONLY = 1, HIDDEN = 2
+	CHAT_ENABLED = 0, CHAT_COMMANDS_ONLY = 1, CHAT_HIDDEN = 2
 } ChatMode;
 
 typedef enum DisplayedSkinParts {
@@ -200,7 +191,7 @@ typedef enum MainHand {
 } MainHand;
 
 typedef struct __attribute__((__packed__)) ClientInformationPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	NetworkBuffer *locale;
 	uint8_t view_distance;
 	MCVarInt *chat_mode;
@@ -211,19 +202,10 @@ typedef struct __attribute__((__packed__)) ClientInformationPacket {
 	bool allow_server_listings;
 } ClientInformationPacket;
 
-ClientInformationPacket *client_info_packet_new(
-		NetworkBuffer *locale,
-		uint8_t view_distance,
-		MCVarInt *chat_mode,
-		bool chat_colors,
-		uint8_t displayed_skin_parts,
-		MCVarInt *main_hand,
-		bool enable_text_filtering,
-		bool allow_server_listings
-);
+PacketHeader * client_info_packet_new();
 
 typedef struct __attribute__((__packed__)) SetPlayerPosAndRotPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	double x;
 	double y;
 	double z;
@@ -232,25 +214,18 @@ typedef struct __attribute__((__packed__)) SetPlayerPosAndRotPacket {
 	bool on_ground;
 } SetPlayerPosAndRotPacket;
 
-SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
-		double x,
-		double y,
-		double z,
-		float yaw,
-		float pitch,
-		bool on_ground
-);
+PacketHeader * set_player_pos_and_rot_packet_new();
 
 typedef enum ClientCommandAction {
-	CLIENT_ACTION_RESPAWN, CLIENT_ACTION_REQUEST_STATS
+	CLIENT_ACTION_RESPAWN = 0, CLIENT_ACTION_REQUEST_STATS = 1
 } ClientCommandAction;
 
 typedef struct __attribute__((__packed__)) ClientCommandPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	MCVarInt *action;
 } ClientCommandPacket;
 
-ClientCommandPacket *client_command_packet_new(MCVarInt *action);
+PacketHeader *client_command_packet_new();
 
 
 /** Clientbound **/
@@ -260,7 +235,7 @@ typedef enum Gamemode {
 } Gamemode;
 
 typedef struct __attribute__((__packed__)) LoginPlayPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	uint32_t entity_id;
 	bool is_hardcore;
 	uint8_t gamemode;
@@ -282,41 +257,21 @@ typedef struct __attribute__((__packed__)) LoginPlayPacket {
 	uint64_t death_location;
 } LoginPlayPacket;
 
-LoginPlayPacket *login_play_packet_new(
-		uint32_t entity_id,
-		bool is_hardcore,
-		uint8_t gamemode,
-		uint8_t previous_gamemode,
-		NetworkBuffer *dimensions,
-		NetworkBuffer *registry_codec,
-		NetworkBuffer *spawn_dimension_name,
-		NetworkBuffer *spawn_dimension_type,
-		uint64_t hashed_seed,
-		MCVarInt *_max_players,
-		MCVarInt *view_distance,
-		MCVarInt *simulation_distance,
-		bool reduced_debug_info,
-		bool enable_respawn_screen,
-		bool is_debug,
-		bool is_flat,
-		bool has_death_location,
-		NetworkBuffer *death_dimension_name,
-		uint64_t death_location
-);
+PacketHeader * login_play_packet_new(bool *hasDeathLocation);
 
 typedef struct __attribute__((__packed__)) DisconnectPlayPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	NetworkBuffer *reason;
 } DisconnectPlayPacket;
 
-DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason);
+PacketHeader * disconnect_play_packet_new();
 
 typedef enum PositionFlag {
 	X_RELATIVE = 0x01, Y_RELATIVE = 0x02, Z_RELATIVE = 0x04, Y_ROT_RELATIVE = 0x08, X_ROT_RELATIVE = 0x10
 } PositionFlag;
 
 typedef struct __attribute__((__packed__)) SynchronizePlayerPositionPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	double x;
 	double y;
 	double z;
@@ -327,49 +282,40 @@ typedef struct __attribute__((__packed__)) SynchronizePlayerPositionPacket {
 	bool dismount_vehicle;
 } SynchronizePlayerPositionPacket;
 
-SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
-		double x,
-		double y,
-		double z,
-		float yaw,
-		float pitch,
-		uint8_t flags,
-		MCVarInt *teleport_id,
-		bool dismount_vehicle
-);
+PacketHeader * synchronize_player_position_packet_new();
 
 typedef struct __attribute__((__packed__)) UpdateRecipesPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	MCVarInt *no_of_recipes;
 	NetworkBuffer *recipe;
 } UpdateRecipesPacket;
 
-UpdateRecipesPacket *update_recipes_packet_new(MCVarInt *no_of_recipes, NetworkBuffer *recipes);
+PacketHeader * update_recipes_packet_new();
 
 typedef enum Difficulty {
 	PEACEFUL = 0, EASY = 1, NORMAL = 2, HARD = 3
 } Difficulty;
 
 typedef struct __attribute__((__packed__)) ChangeDifficultyPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	uint8_t difficulty;
 	bool difficulty_locked;
 } ChangeDifficultyPacket;
 
-ChangeDifficultyPacket *change_difficulty_packet_new(uint8_t difficulty, bool difficulty_locked);
+PacketHeader * change_difficulty_packet_new();
 
 typedef enum PlayerAbilitiesFlags {
 	INVULNERABLE = 0x01, FLYING = 0x02, ALLOW_FLYING = 0x04, CREATIVE_MODE = 0x08
 } PlayerAbilitiesFlags;
 
 typedef struct __attribute__((__packed__)) PlayerAbilitiesCBPacket {
-	PacketHeader _header;
+    PacketHeader *_header;
 	uint8_t flags;
 	float flying_speed;
 	float fov_modifier;
 } PlayerAbilitiesCBPacket;
 
-PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float flying_speed, float fov_modifier);
+PacketHeader * player_abilities_cb_packet_new();
 
 #endif //CMC_PACKETS_H
 

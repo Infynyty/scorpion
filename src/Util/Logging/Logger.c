@@ -8,7 +8,7 @@
 #include <stdarg.h>
 #include "Logger.h"
 
-const enum CMC_LOG_LEVEL ACTIVE_LOG_LEVEL = DEBUG;
+const enum CMC_LOG_LEVEL ACTIVE_LOG_LEVEL = INFO;
 
 // TODO: Reimplement colors
 void cmc_log(enum CMC_LOG_LEVEL level, const char *message, ...) {

@@ -34,6 +34,11 @@ uint8_t get_types_size(PacketField type) {
 	}
 }
 
+void generic_packet_free(GenericPacket *packet) {
+    free(packet->data);
+    free(packet);
+}
+
 void packet_free(PacketHeader **packet) {
     void *ptr = ((PacketHeader **) (packet)) + 1;
 	for (int i = 0; i < (*packet)->members; ++i) {
@@ -65,6 +70,7 @@ void packet_free(PacketHeader **packet) {
 			case PKT_ARRAY:
 			case PKT_BYTEARRAY:
 			case PKT_STRING_ARRAY:
+            case PKT_LOGIN_PROPERTIES:
 			case PKT_UUID:
 			case PKT_NBTTAG:
 			case PKT_STRING: {
@@ -139,10 +145,15 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
 				case PKT_UINT16:
 				case PKT_UINT32:
 				case PKT_UINT64:
+                    buffer_write(buffer, current_byte, get_types_size(m_type));
+                    break;
 				case PKT_FLOAT:
-				case PKT_DOUBLE:
-					buffer_write(buffer, current_byte, get_types_size(m_type));
-					break;
+				case PKT_DOUBLE: {
+                    NetworkBuffer *swap = buffer_new();
+                    buffer_write(swap, current_byte, get_types_size(m_type));
+                    buffer_move(swap, get_types_size(m_type), buffer);
+                    break;
+                }
 				case PKT_VARINT: {
 					MCVarInt *varInt = (*(MCVarInt **) (current_byte));
 					buffer_write_little_endian(buffer, varInt->bytes, varInt->size);
@@ -187,7 +198,7 @@ NetworkBuffer *packet_compress(NetworkBuffer *packet) {
 		uint64_t destLen = packet->size;
 		compress((Bytef *) temp, (uLongf *) &destLen, packet->bytes, packet->size);
 
-		MCVarInt *compressed_size = varint_encode(destLen);
+		MCVarInt *compressed_size = varint_encode(destLen + uncompressed_size->size);
 
 		buffer_write_little_endian(compressed, compressed_size->bytes, compressed_size->size);
 		buffer_write_little_endian(compressed, uncompressed_size->bytes, uncompressed_size->size);
@@ -195,7 +206,7 @@ NetworkBuffer *packet_compress(NetworkBuffer *packet) {
 
 		free(temp);
 	} else {
-		MCVarInt *packet_length = varint_encode(packet->size);
+		MCVarInt *packet_length = varint_encode(packet->size + 1);
 		uint8_t data_length = 0;
 		buffer_write_little_endian(compressed, packet_length->bytes, packet_length->size);
 		buffer_write_little_endian(compressed, &data_length, sizeof(uint8_t));
@@ -237,13 +248,13 @@ void packet_send(PacketHeader **header) {
 
 /** Receive **/
 
-void packet_decode(PacketHeader *header, NetworkBuffer *generic_packet) {
-	void *ptr = header + 1;
-	for (int i = 0; i < header->members; ++i) {
-		PacketField field = header->member_types[i];
+void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
+    void *ptr = ((PacketHeader **) (header)) + 1;
+	for (int i = 0; i < (*header)->members; ++i) {
+		PacketField field = (*header)->member_types[i];
 
-		bool *is_optional = header->optionals[i];
-		if (is_optional != NULL && *is_optional) continue;
+		bool *is_optional = (*header)->optionals[i];
+		if (is_optional != NULL && !(*is_optional)) continue;
 
 		void *variable_pointer;
 		size_t variable_size;
@@ -275,13 +286,23 @@ void packet_decode(PacketHeader *header, NetworkBuffer *generic_packet) {
 				break;
 			}
 			case PKT_FLOAT: {
-				float number = buffer_read(float, generic_packet);
+                NetworkBuffer *swap = buffer_new();
+                buffer_move(generic_packet, sizeof(float ), swap);
+                buffer_swap_endianness(swap);
+                float number;
+                memmove(&number, swap->bytes, swap->size);
+                buffer_free(swap);
 				variable_pointer = &number;
 				variable_size = sizeof(float);
 				break;
 			}
 			case PKT_DOUBLE: {
-				double number = buffer_read(double, generic_packet);
+                NetworkBuffer *swap = buffer_new();
+                buffer_move(generic_packet, sizeof(double ), swap);
+                buffer_swap_endianness(swap);
+				double number;
+                memmove(&number, swap->bytes, swap->size);
+                buffer_free(swap);
 				variable_pointer = &number;
 				variable_size = sizeof(double);
 				break;
@@ -294,7 +315,10 @@ void packet_decode(PacketHeader *header, NetworkBuffer *generic_packet) {
 			}
 			case PKT_UUID: {
 				NetworkBuffer *uuid = buffer_new();
-				buffer_poll(generic_packet, 2 * sizeof(uint64_t), uuid);
+                unsigned char *temp = malloc(2 * sizeof(uint64_t));
+				buffer_poll(generic_packet, 2 * sizeof(uint64_t), temp);
+                buffer_write(uuid, temp, 2* sizeof(uint64_t));
+                free(temp);
 				variable_pointer = &uuid;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
@@ -324,14 +348,23 @@ void packet_decode(PacketHeader *header, NetworkBuffer *generic_packet) {
 				break;
 			}
 			case PKT_NBTTAG: {
-				cmc_log(ERR, "Tried receiving unhandled generic_packet field %d", field);
-				exit(EXIT_FAILURE);
 				NetworkBuffer *nbt = buffer_new();
-				consume_nbt_data(get_socket());
+				consume_nbt_data(generic_packet);
 				variable_pointer = &nbt;
 				variable_size = sizeof(NetworkBuffer *);
 				break;
 			}
+            case PKT_LOGIN_PROPERTIES: {
+                NetworkBuffer *properties = buffer_new();
+                uint16_t properties_size = generic_packet->size;
+                unsigned char *temp = malloc(properties_size);
+                buffer_poll(generic_packet, properties_size, temp);
+                buffer_write(properties, temp, properties_size);
+                free(temp);
+                variable_pointer = &properties;
+                variable_size = sizeof(NetworkBuffer *);
+                break;
+            }
 			case PKT_CHAT:
 			case PKT_IDENTIFIER:
 			case PKT_VARLONG:
@@ -374,7 +407,7 @@ NetworkBuffer *receive_bytes(uint64_t size) {
 }
 
 int32_t receive_varint() {
-	unsigned char current_byte;
+    char current_byte;
 	int result = 0;
 	const int CONTINUE_BIT = 0b10000000;
 	const int SEGMENT_BITS = 0b01111111;
@@ -400,8 +433,12 @@ GenericPacket *packet_receive() {
 		packet->data = receive_bytes(length - varint_encode(packet_id)->size);
 	} else {
 		int32_t compressed_length = receive_varint();
+        if (compressed_length == 0) {
+            packet->uncompressed_length = 0;
+            return packet;
+        }
 		int32_t uncompressed_length = receive_varint();
-		NetworkBuffer *compressed_data = receive_bytes(compressed_length);
+		NetworkBuffer *compressed_data = receive_bytes(compressed_length - varint_encode(uncompressed_length)->size);
 
 		if (uncompressed_length != 0) {
 			char uncompressed_data_temp[uncompressed_length];
@@ -434,10 +471,6 @@ GenericPacket *packet_receive() {
 	}
 	return packet;
 }
-
-//TODO: Two constructors for every packet:
-// Empty: Used to receive a packet over the network. Optional elements? Optionals Array in packet header, where each optional
-// contains a bool ptr.
 
 void packet_generate_header(
 		PacketHeader *header,
@@ -472,22 +505,17 @@ PacketHeader * handshake_pkt_header() {
 	return header;
 }
 
-StatusRequestPacket *status_request_packet_new() {
-	StatusRequestPacket *packet = malloc(sizeof(StatusRequestPacket));
-	PacketHeader header = {};
-	packet_generate_header(&header, NULL, 0, 0x00, SERVERBOUND, STATUS);
-	packet->_header = header;
-	return packet;
+PacketHeader * status_request_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
+	packet_generate_header(header, NULL, 0, 0x00, SERVERBOUND, STATUS);
+	return header;
 }
 
-StatusResponsePacket *status_response_packet_new(NetworkBuffer *response) {
-	StatusResponsePacket *packet = malloc(sizeof(StatusResponsePacket));
-	PacketHeader header = {};
+PacketHeader * status_response_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField fields[] = {PKT_STRING};
-	packet_generate_header(&header, fields, 1, 0x00, CLIENTBOUND, STATUS);
-	packet->_header = header;
-	packet->response = response;
-	return packet;
+	packet_generate_header(header, fields, 1, 0x00, CLIENTBOUND, STATUS);
+	return header;
 }
 
 PacketHeader *login_start_packet_header() {
@@ -501,139 +529,59 @@ PacketHeader *login_start_packet_header() {
 	return header;
 }
 
-DisconnectLoginPacket *disconnect_login_packet_new(NetworkBuffer *reason) {
-	DisconnectLoginPacket *packet = malloc(sizeof(DisconnectLoginPacket));
-	PacketHeader header = {};
+PacketHeader * disconnect_login_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField fields[] = {
 			PKT_STRING
 	};
-	packet_generate_header(&header, fields, 1, 0x00, CLIENTBOUND, LOGIN);
-	packet->_header = header;
-	packet->reason = reason;
-	return packet;
+	packet_generate_header(header, fields, 1, 0x00, CLIENTBOUND, LOGIN);
+	return header;
 }
 
-EncryptionResponsePacket *encryption_response_packet_new(
-		NetworkBuffer *shared_secret,
-		NetworkBuffer *verify_token
-) {
-	EncryptionResponsePacket *packet = malloc(sizeof(EncryptionResponsePacket));
-	uint8_t types_length = 2;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader *encryption_response_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_BYTEARRAY,
 			PKT_BYTEARRAY
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-
-	MCVarInt *packet_id = varint_encode(0x01);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-
-
-	packet->_header = wrapper;
-	packet->shared_secret = shared_secret;
-	packet->verify_token = verify_token;
-	return packet;
+    packet_generate_header(header, typeArray, 2, 0x01, SERVERBOUND, LOGIN);
+    return header;
 }
 
 
-EncryptionRequestPacket *encryption_request_packet_new(
-		NetworkBuffer *server_id,
-		NetworkBuffer *public_key,
-		NetworkBuffer *verify_token
-) {
-	EncryptionRequestPacket *packet = malloc(sizeof(EncryptionRequestPacket));
-	uint8_t types_length = 3;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * encryption_request_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_STRING,
 			PKT_BYTEARRAY,
 			PKT_BYTEARRAY
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x01);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
-	packet->server_id = server_id;
-	packet->public_key = public_key;
-	packet->verify_token = verify_token;
-	return packet;
+    packet_generate_header(header, typeArray, 3, 0x01, CLIENTBOUND, LOGIN);
+    return header;
 }
 
-SetCompressionPacket *set_compression_packet_new(MCVarInt *threshold) {
-    SetCompressionPacket *packet = malloc(sizeof(SetCompressionPacket));
-    PacketHeader header = {};
+PacketHeader * set_compression_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField types[] = {PKT_VARINT};
-    packet_generate_header(&header, types, 1, 0x03, CLIENTBOUND, LOGIN);
-    packet->_header = header;
-    packet->threshold = threshold;
-    return packet;
+    packet_generate_header(header, types, 1, 0x03, CLIENTBOUND, LOGIN);
+    return header;
 }
 
 // TODO: implement arrays
-LoginSuccessPacket *login_success_packet_new(
-		NetworkBuffer *uuid,
-		NetworkBuffer *username,
-		MCVarInt *number_of_properties,
-		NetworkBuffer *properties
-) {
-	LoginSuccessPacket *packet = malloc(sizeof(LoginSuccessPacket));
-	uint8_t types_length = 4;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * login_success_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_UUID,
 			PKT_STRING,
 			PKT_VARINT,
-			PKT_BYTEARRAY
+			PKT_LOGIN_PROPERTIES
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x02);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
-	packet->uuid = uuid;
-	packet->username = username;
-	packet->number_of_properties = number_of_properties;
-	packet->properties = properties;
-	return packet;
+    packet_generate_header(header, typeArray, 4, 0x02, CLIENTBOUND, LOGIN);
+    return header;
 }
 
-ClientInformationPacket *client_info_packet_new(
-		NetworkBuffer *locale,
-		uint8_t view_distance,
-		MCVarInt *chat_mode,
-		bool chat_colors,
-		uint8_t displayed_skin_parts,
-		MCVarInt *main_hand,
-		bool enable_text_filtering,
-		bool allow_server_listings
-) {
-	ClientInformationPacket *packet = malloc(sizeof(ClientInformationPacket));
-	uint8_t types_length = 8;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * client_info_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_STRING,
 			PKT_UINT8,
@@ -644,40 +592,12 @@ ClientInformationPacket *client_info_packet_new(
 			PKT_BOOL,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x08);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->locale = locale;
-	packet->view_distance = view_distance;
-	packet->chat_mode = chat_mode;
-	packet->chat_colors = chat_colors;
-	packet->displayed_skin_parts = displayed_skin_parts;
-	packet->main_hand = main_hand;
-	packet->enable_text_filtering = enable_text_filtering;
-	packet->allow_server_listings = allow_server_listings;
-	return packet;
+    packet_generate_header(header, typeArray, 8, 0x07, CLIENTBOUND, PLAY);
+    return header;
 }
 
-SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
-		double x,
-		double y,
-		double z,
-		float yaw,
-		float pitch,
-		bool on_ground
-) {
-	SetPlayerPosAndRotPacket *packet = malloc(sizeof(SetPlayerPosAndRotPacket));
-	uint8_t types_length = 6;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * set_player_pos_and_rot_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_DOUBLE,
 			PKT_DOUBLE,
@@ -686,97 +606,30 @@ SetPlayerPosAndRotPacket *set_player_pos_and_rot_packet_new(
 			PKT_FLOAT,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x15);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->x = x;
-	packet->y = y;
-	packet->z = z;
-	packet->yaw = yaw;
-	packet->pitch = pitch;
-	packet->on_ground = on_ground;
-	return packet;
+    packet_generate_header(header, typeArray, 6, 0x14, CLIENTBOUND, PLAY);
+    return header;
 }
 
-ClientCommandPacket *client_command_packet_new(MCVarInt *action) {
-	ClientCommandPacket *packet = malloc(sizeof(ClientCommandPacket));
-	uint8_t types_length = 1;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * client_command_packet_new() {
+	PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_VARINT
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x07);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->action = action;
-	return packet;
+    packet_generate_header(header, typeArray, 1, 0x06, SERVERBOUND, PLAY);
+    return header;
 }
 
-ConfirmTeleportationPacket *confirm_teleportation_packet_new(MCVarInt *teleport_id) {
-	ConfirmTeleportationPacket *packet = malloc(sizeof(ConfirmTeleportationPacket));
-	uint8_t types_length = 1;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * confirm_teleportation_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_VARINT
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x00);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = SERVERBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->teleport_id = teleport_id;
-	return packet;
+    packet_generate_header(header, typeArray, 1, 0x00, SERVERBOUND, PLAY);
+    return header;
 }
 
-LoginPlayPacket *login_play_packet_new(
-		uint32_t entity_id,
-		bool is_hardcore,
-		uint8_t gamemode,
-		uint8_t previous_gamemode,
-		NetworkBuffer *dimensions,
-		NetworkBuffer *registry_codec,
-		NetworkBuffer *spawn_dimension_name,
-		NetworkBuffer *spawn_dimension_type,
-		uint64_t hashed_seed,
-		MCVarInt *_max_players,
-		MCVarInt *view_distance,
-		MCVarInt *simulation_distance,
-		bool reduced_debug_info,
-		bool enable_respawn_screen,
-		bool is_debug,
-		bool is_flat,
-		bool has_death_location,
-		NetworkBuffer *death_dimension_name,
-		uint64_t death_location
-) {
-	LoginPlayPacket *packet = malloc(sizeof(LoginPlayPacket));
-	uint8_t types_length = 19;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * login_play_packet_new(bool *hasDeathLocation) {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_UINT32,
 			PKT_BOOL,
@@ -798,81 +651,24 @@ LoginPlayPacket *login_play_packet_new(
 			PKT_STRING,
 			PKT_UINT64
 	};
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	if (has_death_location) {
-		optionals[17] = &packet->has_death_location;
-		optionals[18] = &packet->has_death_location;
-	}
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = varint_encode(0x25);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
-	packet->entity_id = entity_id;
-	packet->is_hardcore = is_hardcore;
-	packet->gamemode = (uint8_t) gamemode;
-	packet->previous_gamemode = (int8_t) previous_gamemode;
-	packet->dimensions = dimensions;
-	packet->registry_codec = registry_codec;
-	packet->spawn_dimension_name = spawn_dimension_name;
-	packet->spawn_dimension_type = spawn_dimension_type;
-	packet->hashed_seed = hashed_seed;
-	packet->_max_players = _max_players;
-	packet->view_distance = view_distance;
-	packet->simulation_distance = simulation_distance;
-	packet->reduced_debug_info = reduced_debug_info;
-	packet->enable_respawn_screen = enable_respawn_screen;
-	packet->is_debug = is_debug;
-	packet->is_flat = is_flat;
-	packet->has_death_location = has_death_location;
-	packet->death_dimension_name = death_dimension_name;
-	packet->death_location = death_location;
-	return packet;
+    packet_generate_header(header, typeArray, 19, 0x25, CLIENTBOUND, PLAY);
+    header->optionals[17] = hasDeathLocation;
+    header->optionals[18] = hasDeathLocation;
+    return header;
 }
 
 
-DisconnectPlayPacket *disconnect_play_packet_new(NetworkBuffer *reason) {
-	DisconnectPlayPacket *packet = malloc(sizeof(DisconnectPlayPacket));
-	uint8_t types_length = 1;
-	PacketField *types = malloc(1 * sizeof(PacketField));
+PacketHeader * disconnect_play_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_STRING
 	};
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	MCVarInt *packet_id = varint_encode(0x19);
-	PacketHeader wrapper = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = wrapper;
-	packet->reason = reason;
-	return packet;
+    packet_generate_header(header, typeArray, 1, 0x17, CLIENTBOUND, PLAY);
+    return header;
 }
 
-SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
-		double x,
-		double y,
-		double z,
-		float yaw,
-		float pitch,
-		uint8_t flags,
-		MCVarInt *teleport_id,
-		bool dismount_vehicle
-) {
-	SynchronizePlayerPositionPacket *packet = malloc(sizeof(SynchronizePlayerPositionPacket));
-	uint8_t types_length = 8;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * synchronize_player_position_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_DOUBLE,
 			PKT_DOUBLE,
@@ -883,102 +679,37 @@ SynchronizePlayerPositionPacket *synchronize_player_position_packet_new(
 			PKT_VARINT,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x39);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->x = x;
-	packet->y = y;
-	packet->z = z;
-	packet->yaw = yaw;
-	packet->pitch = pitch;
-	packet->flags = flags;
-	packet->teleport_id = teleport_id;
-	packet->dismount_vehicle = dismount_vehicle;
-	return packet;
+    packet_generate_header(header, typeArray, 8, 0x38, CLIENTBOUND, PLAY);
+	return header;
 }
 
-UpdateRecipesPacket *update_recipes_packet_new(MCVarInt *no_of_recipes, NetworkBuffer *recipes) {
-	UpdateRecipesPacket *packet = malloc(sizeof(UpdateRecipesPacket));
-	uint8_t types_length = 2;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * update_recipes_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_VARINT,
 			PKT_STRING
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x39);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->no_of_recipes = no_of_recipes;
-	packet->recipe = recipes;
-	return packet;
+    packet_generate_header(header, typeArray, 2, 0x69, CLIENTBOUND, PLAY);
+	return header;
 }
 
-ChangeDifficultyPacket *change_difficulty_packet_new(uint8_t difficulty, bool difficulty_locked) {
-	ChangeDifficultyPacket *packet = malloc(sizeof(ChangeDifficultyPacket));
-	uint8_t types_length = 2;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * change_difficulty_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_UINT8,
 			PKT_BOOL
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x0b);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->difficulty = difficulty;
-	packet->difficulty_locked = difficulty_locked;
-	return packet;
+    packet_generate_header(header, typeArray, 2, 0x0b, CLIENTBOUND, PLAY);
+    return header;
 }
 
-PlayerAbilitiesCBPacket *player_abilities_cb_packet_new(uint8_t flags, float flying_speed, float fov_modifier) {
-	PlayerAbilitiesCBPacket *packet = malloc(sizeof(PlayerAbilitiesCBPacket));
-	uint8_t types_length = 3;
-	PacketField *types = malloc(types_length * sizeof(PacketField));
+PacketHeader * player_abilities_cb_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
 	PacketField typeArray[] = {
 			PKT_UINT8,
 			PKT_FLOAT,
 			PKT_FLOAT
 	};
-	memcpy(types, typeArray, types_length * sizeof(PacketField));
-	bool **optionals = calloc(types_length, sizeof(bool *));
-	MCVarInt *packet_id = varint_encode(0x31);
-	PacketHeader header = {
-			.member_types = types,
-			.members = types_length,
-			.optionals = optionals,
-			.direction = CLIENTBOUND,
-			.state = STATUS,
-			.packet_id = packet_id
-	};
-	packet->_header = header;
-	packet->flags = flags;
-	packet->flying_speed = flying_speed;
-	packet->fov_modifier = fov_modifier;
-	return packet;
+    packet_generate_header(header, typeArray, 3, 0x31, CLIENTBOUND, PLAY);
+    return header;
 }

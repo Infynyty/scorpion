@@ -69,7 +69,7 @@ void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, const size_t
 	buffer_write_bytes(buffer, bytes, length_in_bytes);
 }
 
-static void buffer_remove(NetworkBuffer *buffer, const size_t length) {
+void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 	int32_t size_after_remove = (int32_t) (buffer->size - length);
 	if (size_after_remove < 0) {
 		size_after_remove = 0;
@@ -97,8 +97,10 @@ void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
 }
 
 void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest) {
-	buffer_poll(src, length, dest);
-	dest->size += length;
+    char *temp = malloc(length);
+	buffer_poll(src, length, temp);
+    buffer_write_little_endian(dest, temp, length);
+    free(temp);
 }
 
 // Strings

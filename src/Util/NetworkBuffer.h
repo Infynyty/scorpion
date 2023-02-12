@@ -108,5 +108,7 @@ int32_t buffer_read_varint(NetworkBuffer *buffer);
 
 void buffer_read_array(NetworkBuffer *src, NetworkBuffer *dest);
 
+void buffer_remove(NetworkBuffer *buffer, const size_t length);
+
 
 #endif //CMC_NETWORKBUFFER_H

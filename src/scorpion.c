@@ -30,47 +30,65 @@ void handle_login_play(void *packet) {
 	LoginPlayPacket *play = packet;
 	cmc_log(INFO, "Logged in with gamemode %d.", play->gamemode);
 
-	ClientInformationPacket *cip = client_info_packet_new(
-			string_buffer_new("de_DE"),
-			5,
-			varint_encode(ENABLED),
-			true,
-			0,
-			varint_encode(MAINHAND_RIGHT),
-			false,
-			true
-	);
-	packet_send(&cip->_header);
-	packet_free(&cip->_header);
+    ClientInformationPacket cip = {
+            ._header = client_info_packet_new(),
+            .allow_server_listings = true,
+            .chat_colors = false,
+            .chat_mode = varint_encode(CHAT_ENABLED),
+            .displayed_skin_parts = 0,
+            .enable_text_filtering = false,
+            .main_hand = varint_encode(MAINHAND_RIGHT),
+            .view_distance = 2,
+            .locale = string_buffer_new("de_DE")
+    };
+	packet_send(&cip._header);
+	packet_free(&cip._header);
 }
 
 void handle_init_pos(void *packet) {
 	SynchronizePlayerPositionPacket *sync = packet;
-	MCVarInt *teleport_id = varint_encode(varint_decode(sync->teleport_id));
-	ConfirmTeleportationPacket *confirmation = confirm_teleportation_packet_new(teleport_id);
-	packet_send(&confirmation->_header);
-	packet_free(&confirmation->_header);
+	ConfirmTeleportationPacket confirmation = {
+            ._header = confirm_teleportation_packet_new(),
+            .teleport_id = varint_encode(varint_decode(sync->teleport_id->bytes))
+    };
+	packet_send(&confirmation._header);
+	packet_free(&confirmation._header);
 	cmc_log(INFO, "Confirmed teleportation.");
 
-	SetPlayerPosAndRotPacket *ppr = set_player_pos_and_rot_packet_new(
-			sync->x + 0.05,
-			sync->y,
-			sync->z,
-			sync->yaw,
-			sync->pitch,
-			true
-	);
-	packet_send(&ppr->_header);
-	packet_free(&ppr->_header);
+	SetPlayerPosAndRotPacket ppr = {
+            ._header = set_player_pos_and_rot_packet_new(),
+            sync->x + 0.2f,
+            sync->y,
+            sync->z,
+            sync->yaw,
+            sync->pitch,
+            true
+    };
+	packet_send(&ppr._header);
 	cmc_log(INFO, "Sent position.");
 
-	ClientCommandPacket *cmd = client_command_packet_new(varint_encode(CLIENT_ACTION_RESPAWN));
-	packet_send(&cmd->_header);
-	packet_free(&cmd->_header);
+	ClientCommandPacket cmd = {
+            ._header = client_command_packet_new(),
+            .action = varint_encode(CLIENT_ACTION_RESPAWN)
+    };
+	packet_send(&cmd._header);
+	packet_free(&cmd._header);
+
+    cmc_log(INFO, "Spawned");
+
+    for (int i = 0; i < 100; ++i) {
+        ppr.yaw -= 5;
+        packet_send(&ppr._header);
+        usleep(1000 * 10);
+    }
+
+    cmc_log(INFO, "Sent all packages");
+
+    packet_free(&ppr._header);
 
 	double currentX = sync->y;
 //    for (int i = 0; i < 100; ++i) {
-	SetPlayerPosAndRotPacket *ppr_new = set_player_pos_and_rot_packet_new(
+	/**SetPlayerPosAndRotPacket *ppr_new = set_player_pos_and_rot_packet_new(
 			sync->x + 0.05,
 			sync->y,
 			sync->z,
@@ -83,9 +101,8 @@ void handle_init_pos(void *packet) {
 	cmc_log(DEBUG, "Position x: %lf", currentX);
 	cmc_log(DEBUG, "Sending packet x: %lf", currentX);
 	packet_send(&ppr_new->_header);
-	packet_free(&ppr_new->_header);
+	packet_free(&ppr_new->_header);**/
 //    }
-
 }
 
 void handle_encryption(void *packet) {

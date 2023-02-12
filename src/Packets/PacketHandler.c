@@ -25,12 +25,12 @@
 // Connection status: PLAY
 
 #define CHANGE_DIFFICULTY_ID            0x0b
-#define PLAYER_ABILITIES_CB_ID          0x31
-#define SYNCHRONIZE_PLAYER_POSITION_ID  0x39
-#define DISCONNECT_PLAY                 0x19
-#define LOGIN_PLAY_ID                   0x25
+#define PLAYER_ABILITIES_CB_ID          0x30
+#define SYNCHRONIZE_PLAYER_POSITION_ID  0x38
+#define DISCONNECT_PLAY                 0x17
+#define LOGIN_PLAY_ID                   0x24
 #define SET_HELD_ITEM_ID                0x4a
-#define UPDATE_RECIPES_ID               0x6a
+#define UPDATE_RECIPES_ID               0x69
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
@@ -109,7 +109,7 @@ int register_handler(void (*handle)(void *packet), Packets packet_type) {
 	return add_node(handle, packet_type);
 }
 
-void packet_event(Packets packet_type, PacketHeader *packet) {
+void packet_event(Packets packet_type, PacketHeader **packet) {
 	HandlerNode *current_node = packet_handlers[packet_type];
 	while (current_node != NULL) {
 		(*current_node->handle)(packet);
@@ -143,9 +143,9 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 			case STATUS:
 				switch (generic_packet->packet_id) {
 					case STATUS_RESPONSE: {
-						StatusResponsePacket *packet = status_response_packet_new(NULL);
-						packet_decode(&packet->_header, generic_packet->data);
-						packet_event(STATUS_RESPONSE_PKT, &(packet->_header));
+						StatusResponsePacket packet = {._header = status_response_packet_new()};
+						packet_decode(packet._header, generic_packet->data);
+						packet_event(STATUS_RESPONSE_PKT, packet._header);
 						break;
 					}
 					default:
@@ -184,22 +184,22 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						break;
 					}
 					case LOGIN_SUCCESS_ID: {
-                        LoginSuccessPacket *packet = login_success_packet_new( NULL, NULL, NULL, NULL);
-                        packet_decode(&packet->_header, generic_packet->data);
+                        LoginSuccessPacket packet = {._header = login_success_packet_new()};
+                        packet_decode(&packet._header, generic_packet->data);
 						cmc_log(DEBUG, "Received Login Success Packet.");
 						connectionState = PLAY;
 						cmc_log(DEBUG, "Switched connection state to PLAY.");
 
-						packet_event(LOGIN_SUCCESS_PKT, &packet->_header);
+						packet_event(LOGIN_SUCCESS_PKT, &packet._header);
 						break;
 					}
 					case SET_COMPRESSION_ID: {
-						SetCompressionPacket *packet = set_compression_packet_new(NULL);
-                        packet_decode(&packet->_header, generic_packet->data);
+						SetCompressionPacket packet = {._header = set_compression_packet_new()};
+                        packet_decode(&packet._header, generic_packet->data);
 
-                        set_compression_threshold(varint_decode(packet->threshold->bytes));
+                        set_compression_threshold(varint_decode(packet.threshold->bytes));
 						cmc_log(INFO, "Enabled compression.");
-
+                        packet_event(SET_COMPRESSION_PKT, &packet._header);
 						break;
 					}
 					default:
@@ -220,33 +220,28 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 					}
 					case LOGIN_PLAY_ID: {
 						cmc_log(INFO, "Received Login Play Packet.");
-						LoginPlayPacket *packet = login_play_packet_new(
-								0, NULL, 0, 0, NULL, NULL, NULL,
-								NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL,
-								NULL, NULL, NULL, 0);
-						packet_decode(&packet->_header, generic_packet->data);
-						packet_event(LOGIN_PLAY_PKT, &packet->_header);
+						LoginPlayPacket packet = {._header = login_play_packet_new(&packet.has_death_location)};
+						packet_decode(&packet._header, generic_packet->data);
+						packet_event(LOGIN_PLAY_PKT, &packet._header);
 						break;
 					}
 					case CHANGE_DIFFICULTY_ID: {
-						ChangeDifficultyPacket *packet = change_difficulty_packet_new(0, NULL);
-						packet_decode(&packet->_header, generic_packet->data);
-						cmc_log(INFO, "Set initial difficulty to: %d.", packet->difficulty);
-						packet_event(CHANGE_DIFFICULTY_PKT, &packet->_header);
+						ChangeDifficultyPacket packet = {._header = change_difficulty_packet_new()};
+						packet_decode(&packet._header, generic_packet->data);
+						cmc_log(INFO, "Set initial difficulty to: %d.", packet.difficulty);
+						packet_event(CHANGE_DIFFICULTY_PKT, &packet._header);
 						break;
 					}
 					case PLAYER_ABILITIES_CB_ID: {
-						PlayerAbilitiesCBPacket *packet = player_abilities_cb_packet_new(0, 0, 0);
-						packet_decode(&packet->_header, generic_packet->data);
-						packet_event(PLAYER_ABILITIES_CB_PKT, &packet->_header);
+						PlayerAbilitiesCBPacket packet = {._header = player_abilities_cb_packet_new()};
+						packet_decode(&packet._header, generic_packet->data);
+						packet_event(PLAYER_ABILITIES_CB_PKT, &packet._header);
 						break;
 					}
 					case SYNCHRONIZE_PLAYER_POSITION_ID: {
-						SynchronizePlayerPositionPacket *packet = synchronize_player_position_packet_new(
-								0, 0, 0, 0, 0, 0, NULL, NULL
-						);
-						packet_decode(&packet->_header, generic_packet->data);
-						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet->_header);
+						SynchronizePlayerPositionPacket packet = {._header = synchronize_player_position_packet_new()};
+						packet_decode(&packet._header, generic_packet->data);
+						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet._header);
 						break;
 					}
 					case UPDATE_RECIPES_ID: {
@@ -292,6 +287,7 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 				cmc_log(ERR, "Invalid connection state (state: %d)!", connectionState);
 				return;
 		}
+        generic_packet_free(generic_packet);
 	}
 	serverstate_free(serverState);
 }
