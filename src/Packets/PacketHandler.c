@@ -31,6 +31,7 @@
 #define LOGIN_PLAY_ID                   0x24
 #define SET_HELD_ITEM_ID                0x4a
 #define UPDATE_RECIPES_ID               0x69
+#define KEEP_ALIVE_CLIENTBOUND_ID       0x1f
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
@@ -131,12 +132,14 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 		GenericPacket *generic_packet = packet_receive();
 
 		if (generic_packet->uncompressed_length < 0) {
+            generic_packet_free(generic_packet);
 			continue;
 		}
 
 		if (generic_packet->packet_id > 255) {
 			cmc_log(ERR, "Illegal packet id %d, packet size: %d", generic_packet->packet_id,
 			        generic_packet->uncompressed_length);
+            generic_packet_free(generic_packet);
 			continue;
 		}
 		switch (connectionState) {
@@ -242,8 +245,15 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						SynchronizePlayerPositionPacket packet = {._header = synchronize_player_position_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
 						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet._header);
+                        return;
 						break;
 					}
+                    case KEEP_ALIVE_CLIENTBOUND_ID: {
+                        KeepAliveClientboundPacket packet = {._header = keep_alive_clientbound_packet_new()};
+                        packet_decode(&packet._header, generic_packet->data);
+                        packet_event(KEEP_ALIVE_CLIENTBOUND_PKT, &packet._header);
+                        break;
+                    }
 					case UPDATE_RECIPES_ID: {
 						cmc_log(DEBUG, "Recipes packet, size = %d", generic_packet->uncompressed_length);
 //                        const char* CRAFTING_SHAPELESS = "crafting_shapeless";

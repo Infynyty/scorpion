@@ -10,7 +10,10 @@
 #include "WorldState.h"
 
 
-struct ClientState;
+struct ClientState {
+    bool completed_login;
+    Position *player_position;
+};
 
 
 ClientState *client_state_new() {

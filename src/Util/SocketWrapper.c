@@ -1,7 +1,3 @@
-//
-// Created by Kasimir Stadie on 17.10.22.
-//
-
 #if defined(__APPLE__) || defined(__linux__)
 
 #include <sys/socket.h>

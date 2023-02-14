@@ -15,7 +15,7 @@ typedef enum PacketField {
 	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_FLOAT,
 	PKT_DOUBLE, PKT_STRING, PKT_CHAT, PKT_IDENTIFIER, PKT_VARINT, PKT_VARLONG,
 	PKT_ENTITYMETA, PKT_SLOT, PKT_NBTTAG, PKT_OPTIONAL, PKT_ARRAY, PKT_ENUM,
-	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY, PKT_LOGIN_PROPERTIES
+	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY, PKT_LOGIN_PROPERTIES, PKT_PREV_MSG_ARRAY
 } PacketField;
 
 typedef struct GenericPacket {
@@ -316,6 +316,42 @@ typedef struct __attribute__((__packed__)) PlayerAbilitiesCBPacket {
 } PlayerAbilitiesCBPacket;
 
 PacketHeader * player_abilities_cb_packet_new();
+
+typedef struct __attribute__((__packed__)) KeepAliveClientboundPacket {
+    PacketHeader *_header;
+    int64_t payload;
+} KeepAliveClientboundPacket;
+
+PacketHeader * keep_alive_clientbound_packet_new();
+
+typedef struct __attribute__((__packed__)) KeepAliveServerboundPacket {
+    PacketHeader *_header;
+    int64_t payload;
+} KeepAliveServerboundPacket;
+
+PacketHeader * keep_alive_serverbound_new();
+
+typedef struct __attribute__((__packed__)) PlayerChatMessagePacket {
+    PacketHeader *_header;
+    NetworkBuffer *sender;
+    MCVarInt *index;
+    bool has_message_signature;
+    NetworkBuffer *signature;
+    NetworkBuffer *message;
+    uint64_t timestamp;
+    uint64_t salt;
+    MCVarInt *no_of_prev_messages;
+    NetworkBuffer *prev_messages;
+    bool has_unsigned_content;
+    NetworkBuffer *unsigned_content;
+    MCVarInt *filter_type;
+    MCVarInt *filter_type_bits;
+    MCVarInt *chat_type;
+    NetworkBuffer *network_name;
+    bool network_target_name_present;
+} PlayerChatMessagePacket;
+
+PacketHeader *player_chat_message_header(bool *has_signature, bool *has_unsigned_content, bool *has_target_network);
 
 #endif //CMC_PACKETS_H
 

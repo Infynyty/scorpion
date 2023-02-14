@@ -36,6 +36,16 @@ void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest);
         _result;                                   \
     })
 
+#define buffer_read_big_endian(type, _buffer) ({ \
+        NetworkBuffer *_swap = buffer_new();      \
+        buffer_move(_buffer, sizeof(type), _swap);\
+        buffer_swap_endianness(_swap);\
+        type _result = 0;                             \
+        buffer_poll(_swap, sizeof(type), &_result);   \
+        buffer_free(_swap);                                         \
+        _result;                                   \
+    })
+
 #define buffer_receive_type(type) ({ \
         NetworkBuffer *_buffer = buffer_new();                             \
         type _result = 0;                                     \

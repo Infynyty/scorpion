@@ -10,7 +10,6 @@
 
 #define MAX_BUFFER_SIZE 2097151 // maximum size for a packet
 
-
 NetworkBuffer *buffer_new() {
 	NetworkBuffer *buffer = malloc(sizeof(NetworkBuffer));
 	buffer->bytes = calloc(0, sizeof(char));

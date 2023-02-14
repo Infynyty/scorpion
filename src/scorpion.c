@@ -105,6 +105,17 @@ void handle_init_pos(void *packet) {
 //    }
 }
 
+void handle_keep_alive(void *packet) {
+    cmc_log(INFO, "Received keep alive packet.");
+    KeepAliveClientboundPacket *keep_alive = (KeepAliveClientboundPacket *) packet;
+    KeepAliveServerboundPacket response = {
+            ._header = keep_alive_serverbound_new(),
+            .payload = keep_alive->payload
+    };
+    packet_send(&response._header);
+    packet_free(&response._header);
+}
+
 void handle_encryption(void *packet) {
 	cmc_log(INFO, "Encryption request received");
 }
@@ -170,6 +181,7 @@ int main() {
 	register_handler(&handle_login_success, LOGIN_SUCCESS_PKT);
 	register_handler(&handle_login_play, LOGIN_PLAY_PKT);
 	register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
+	register_handler(&handle_keep_alive, KEEP_ALIVE_CLIENTBOUND_PKT);
 
 
 	ClientState *clientState = client_state_new();
@@ -183,7 +195,8 @@ int main() {
 	client_state_free(clientState);
 	free(socket_wrapper);
 
-//	system("leaks scorpion");
+    //system("export MallocStackLogging=1");
+    //system("leaks scorpion");
 
 	return 0;
 }
