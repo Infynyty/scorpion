@@ -6,7 +6,7 @@
 #include "Logger.h"
 #include <openssl/err.h>
 #include <openssl/aes.h>
-#include <curl/curl.h>
+#include "curl/curl.h"
 
 
 void authenticateAccount() {
