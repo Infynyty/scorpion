@@ -142,6 +142,7 @@ void get_status() {
 
 int main() {
 
+    cmc_log(INFO, "Test2");
 	SocketWrapper *socket_wrapper = connect_wrapper();
 	cmc_log(INFO, "Connected succesfully!");
 

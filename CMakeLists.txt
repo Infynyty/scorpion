@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 project(scorpion C)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
 
 set(CMAKE_C_STANDARD 11)
 
@@ -44,15 +45,23 @@ add_executable(scorpion
         src/Util/SocketWrapper.h
         src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h)
 
+if (WIN32)
+    target_link_libraries(scorpion wsock32 ws2_32)
+    add_definitions("-DCURL_STATICLIB")
+endif ()
+
 find_package(ZLIB)
 target_link_libraries(scorpion ZLIB::ZLIB)
 find_package(OpenSSL REQUIRED)
 target_link_libraries(scorpion OpenSSL::SSL)
+set(CURL_LIBRARY ${CMAKE_SOURCE_DIR}/lib/libcurl-d.dll)
+set( CURL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 find_package(CURL REQUIRED)
-target_link_libraries(scorpion CURL::libcurl)
 
-if (WIN32)
-    target_link_libraries(scorpion wsock32 ws2_32)
+if (CURL_FOUND)
+    include_directories(${CURL_INCLUDE_DIR})
+    link_directories( ${CURL_LIBRARIES} )
+    target_link_libraries(scorpion curl)
 endif ()
 
 if (LINUX)

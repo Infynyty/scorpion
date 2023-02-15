@@ -12,7 +12,6 @@
 void authenticateAccount() {
 
 }
-
 void authenticateJoin(NetworkBuffer *secret) {
     CURL *curl;
     CURLcode res;

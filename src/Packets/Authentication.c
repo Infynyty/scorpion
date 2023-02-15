@@ -1,7 +1,3 @@
-//
-// Created by Kasimir Stadie on 11.02.23.
-//
-
 #include "Authentication.h"
 #include "NetworkBuffer.h"
 
