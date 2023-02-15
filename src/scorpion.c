@@ -5,6 +5,7 @@
 #include "Util/Logging/Logger.h"
 #include "SocketWrapper.h"
 #include "Packets/Packets.h"
+#include "Authentication.h"
 
 void print_status_response(void *packet) {
 	StatusResponsePacket *response = packet;
@@ -142,7 +143,8 @@ void get_status() {
 
 int main() {
 
-    cmc_log(INFO, "Test2");
+    authenticate_xbl();
+
 	SocketWrapper *socket_wrapper = connect_wrapper();
 	cmc_log(INFO, "Connected succesfully!");
 
