@@ -143,7 +143,7 @@ void get_status() {
 
 int main() {
 
-    authenticate_xbl();
+    authenticate();
 
 	SocketWrapper *socket_wrapper = connect_wrapper();
 	cmc_log(INFO, "Connected succesfully!");

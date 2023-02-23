@@ -7,6 +7,8 @@
 
 #include "NetworkBuffer.h"
 
-NetworkBuffer *authenticate_xbl();
+typedef struct AuthenticationDetails AuthenticationDetails;
+
+AuthenticationDetails *authenticate();
 
 #endif //SCORPION_AUTHENTICATION_H

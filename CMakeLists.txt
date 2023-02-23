@@ -62,6 +62,8 @@ find_package(ZLIB)
 target_link_libraries(scorpion ZLIB::ZLIB)
 find_package(OpenSSL REQUIRED)
 target_link_libraries(scorpion OpenSSL::SSL)
+find_package(json-c CONFIG)
+target_link_libraries(scorpion json-c::json-c)
 
 if (LINUX)
     target_link_libraries(scorpion m)
