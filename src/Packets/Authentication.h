@@ -6,9 +6,10 @@
 #define SCORPION_AUTHENTICATION_H
 
 #include "NetworkBuffer.h"
+#include "ClientState.h"
 
 typedef struct AuthenticationDetails AuthenticationDetails;
 
-AuthenticationDetails *authenticate();
+AuthenticationDetails *authenticate(ClientState *state);
 
 #endif //SCORPION_AUTHENTICATION_H

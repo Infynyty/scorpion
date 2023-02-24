@@ -6,6 +6,8 @@
 #include "SocketWrapper.h"
 #include "Packets/Packets.h"
 #include "Authentication.h"
+#include <openssl/bn.h>
+#include <openssl/evp.h>
 
 void print_status_response(void *packet) {
 	StatusResponsePacket *response = packet;
@@ -124,7 +126,7 @@ void handle_encryption(void *packet) {
 void get_status() {
 	char address[] = "localhost";
 	NetworkBuffer *address_buf = buffer_new();
-	buffer_write_little_endian(address_buf, address, strlen(address));
+    buffer_write(address_buf, address, strlen(address));
 	HandshakePacket *handshakePacket = handshake_pkt_header();
 	packet_send(&handshakePacket->_header);
 	packet_free(&handshakePacket->_header);
@@ -136,37 +138,29 @@ void get_status() {
 	register_handler(&print_status_response, STATUS_RESPONSE_PKT);
 
 	ClientState *clientState = client_state_new();
-	handle_packets(get_socket(), clientState);
+    handle_packets(clientState);
 
 }
 
-
-int main() {
-
-    authenticate();
-
-	SocketWrapper *socket_wrapper = connect_wrapper();
-	cmc_log(INFO, "Connected succesfully!");
-
-
-	char address[] = "localhost";
-	NetworkBuffer *address_buf = buffer_new();
-	buffer_write_little_endian(address_buf, address, strlen(address));
-	HandshakePacket handshakePacket = {
+void handle_login() {
+    char address[] = "localhost";
+    NetworkBuffer *address_buf = buffer_new();
+    buffer_write(address_buf, address, strlen(address));
+    HandshakePacket handshakePacket = {
             ._header = handshake_pkt_header(),
             .protocol_version = varint_encode(761),
             .port = 25565,
             .address = address_buf,
             .next_state = varint_encode(2)
     };
-	packet_send(&handshakePacket._header);
-	packet_free(&handshakePacket._header);
+    packet_send(&handshakePacket._header);
+    packet_free(&handshakePacket._header);
 
-	NetworkBuffer *uuid = buffer_new();
-	uint64_t low = 0;
-	uint64_t high = 0;
-	buffer_write(uuid, &low, sizeof(uint64_t));
-	buffer_write(uuid, &high, sizeof(uint64_t));
+    NetworkBuffer *uuid = buffer_new();
+    uint64_t low = 0;
+    uint64_t high = 0;
+    buffer_write(uuid, &high, sizeof(uint64_t));
+    buffer_write(uuid, &low, sizeof(uint64_t));
     LoginStartPacket start = {
             ._header = login_start_packet_header(),
             .player_name = string_buffer_new("Infy"),
@@ -176,27 +170,45 @@ int main() {
     packet_send(&start._header);
     packet_free(&start._header);
 
-	cmc_log(INFO, "Login start");
+    cmc_log(INFO, "Login start");
+}
+
+void register_handlers() {
+    register_handler(&print_disconnect, DISCONNECT_PLAY_PKT);
+    register_handler(&print_disconnect_login, LOGIN_DISCONNECT_PKT);
+    register_handler(&handle_login_success, LOGIN_SUCCESS_PKT);
+    register_handler(&handle_login_play, LOGIN_PLAY_PKT);
+    register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
+    register_handler(&handle_keep_alive, KEEP_ALIVE_CLIENTBOUND_PKT);
+}
 
 
-	register_handler(&print_disconnect, DISCONNECT_PLAY_PKT);
-	register_handler(&print_disconnect_login, LOGIN_DISCONNECT_PKT);
-	register_handler(&handle_login_success, LOGIN_SUCCESS_PKT);
-	register_handler(&handle_login_play, LOGIN_PLAY_PKT);
-	register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
-	register_handler(&handle_keep_alive, KEEP_ALIVE_CLIENTBOUND_PKT);
+int main() {
+
+    ClientState *clientState = client_state_new();
+    authenticate(clientState);
+
+    cmc_log(DEBUG, "Trying to connect to server socket...");
+	SocketWrapper *socket_wrapper = connect_wrapper();
+	cmc_log(DEBUG, "Connection to server socket was successful.");
 
 
-	ClientState *clientState = client_state_new();
-	handle_packets(socket_wrapper, clientState);
+    register_handlers();
+    cmc_log(DEBUG, "Registered handlers.");
+    handle_login();
+    cmc_log(DEBUG, "Sent login packets.");
+    cmc_log(INFO, "Ready to receive packets.");
+    cmc_log(DEBUG, "Handling incoming packets...");
+    handle_packets(clientState);
 
-
+    cmc_log(INFO, "Disconnecting...");
 	deregister_all_handlers();
-
-	// TODO: write exit function that frees the socket pointer and closes the socket
+    cmc_log(DEBUG, "Deregistered all handlers.");
 	close(socket_wrapper->socket);
 	client_state_free(clientState);
 	free(socket_wrapper);
+
+    cmc_log(INFO, "Disconnected successfully.");
 
     //system("export MallocStackLogging=1");
     //system("leaks scorpion");

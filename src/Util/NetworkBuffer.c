@@ -23,7 +23,7 @@ void buffer_free(NetworkBuffer *buffer) {
 	buffer = NULL;
 }
 
-void buffer_write_bytes(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
+void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
 	if (length_in_bytes == 0) return;
 	if (buffer->size + length_in_bytes >= MAX_BUFFER_SIZE) {
 		fprintf(stderr, "NetworkBuffer size (%d) too big!", buffer->size + length_in_bytes);
@@ -58,16 +58,6 @@ void buffer_swap_endianness(NetworkBuffer *buffer) {
 	swap_endianness(buffer->bytes, buffer->size);
 }
 
-void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
-	swap_endianness(bytes, length_in_bytes);
-	buffer_write_bytes(buffer, bytes, length_in_bytes);
-	swap_endianness(bytes, length_in_bytes);
-}
-
-void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
-	buffer_write_bytes(buffer, bytes, length_in_bytes);
-}
-
 void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 	int32_t size_after_remove = (int32_t) (buffer->size - length);
 	if (size_after_remove < 0) {
@@ -98,7 +88,7 @@ void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
 void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest) {
     char *temp = malloc(length);
 	buffer_poll(src, length, temp);
-    buffer_write_little_endian(dest, temp, length);
+    buffer_write(dest, temp, length);
     free(temp);
 }
 
@@ -107,15 +97,8 @@ void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest) {
 
 NetworkBuffer *string_buffer_new(char *string) {
 	NetworkBuffer *buffer = buffer_new();
-	buffer_write_little_endian(buffer, string, strlen(string));
+    buffer_write(buffer, string, strlen(string));
 	return buffer;
-}
-
-void buffer_receive_string(NetworkBuffer *buffer, SocketWrapper *socket) {
-	int string_length = varint_receive(socket);
-	buffer_receive(buffer, socket, string_length);
-	char string_terminator = '\0';
-	buffer_write_bytes(buffer, &string_terminator, 1);
 }
 
 void buffer_print_string(NetworkBuffer *buffer) {
@@ -139,7 +122,7 @@ int32_t buffer_read_varint(NetworkBuffer *buffer) {
 
 void buffer_read_array(NetworkBuffer *src, NetworkBuffer *dest) {
 	uint32_t length = buffer_read_varint(src);
-	buffer_write_bytes(dest, src->bytes, length);
+	buffer_write(dest, src->bytes, length);
 	buffer_remove(src, length);
 }
 
@@ -148,7 +131,7 @@ NetworkBuffer *buffer_read_string(NetworkBuffer *buffer) {
 	int32_t length = buffer_read_varint(buffer);
 	uint8_t temp[length];
 	buffer_poll(buffer, length, temp);
-	buffer_write_little_endian(string, temp, length);
+    buffer_write(string, temp, length);
 	return string;
 }
 
@@ -161,7 +144,7 @@ void buffer_receive(NetworkBuffer *buffer, SocketWrapper *socket, size_t length)
 			break;
 		}
 		received_bytes += response;
-		buffer_write_bytes(buffer, bytes, received_bytes);
+		buffer_write(buffer, bytes, received_bytes);
 		if (received_bytes == length) {
 			break;
 		}

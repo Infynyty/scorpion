@@ -35,7 +35,7 @@ typedef enum Packets {
 	SET_PLAYER_ROT_PKT
 } Packets;
 
-void handle_packets(SocketWrapper *socket, ClientState *clientState);
+void handle_packets(ClientState *clientState);
 
 int register_handler(void (*handle)(void *packet), Packets packet_type);
 

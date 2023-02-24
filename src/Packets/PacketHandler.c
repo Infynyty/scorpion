@@ -123,7 +123,7 @@ static ServerState *serverState;
 
 
 //TODO: abstract method for packet receive using packet fields?
-void handle_packets(SocketWrapper *socket, ClientState *clientState) {
+void handle_packets(ClientState *clientState) {
 	serverState = serverstate_new();
 	Packets packet_type;
 	ConnectionState connectionState = LOGIN;
@@ -214,11 +214,10 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 			case PLAY:
 				switch (generic_packet->packet_id) {
 					case DISCONNECT_PLAY: {
-						DisconnectPlayPacket *packet = disconnect_play_packet_new(NULL);
-						NetworkBuffer *response = buffer_new();
-						buffer_receive_string(response, socket);
-						packet->reason = response;
-						packet_event(DISCONNECT_PLAY_PKT, &(packet->_header));
+                        cmc_log(INFO, "Received Login Play Packet.");
+                        DisconnectPlayPacket packet = {._header = disconnect_play_packet_new()};
+                        packet_decode(&packet._header, generic_packet->data);
+                        packet_event(DISCONNECT_PLAY_PKT, &packet._header);
 						return;
 					}
 					case LOGIN_PLAY_ID: {
@@ -245,7 +244,6 @@ void handle_packets(SocketWrapper *socket, ClientState *clientState) {
 						SynchronizePlayerPositionPacket packet = {._header = synchronize_player_position_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
 						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet._header);
-                        return;
 						break;
 					}
                     case KEEP_ALIVE_CLIENTBOUND_ID: {

@@ -37,7 +37,7 @@ void authentication_details_free(AuthenticationDetails *details) {
 
 size_t save_response(char *ptr, size_t size, size_t nmemb, void *userdata) {
     NetworkBuffer *buffer = userdata;
-    buffer_write_little_endian(buffer, ptr, size * nmemb);
+    buffer_write(buffer, ptr, size * nmemb);
     return size * nmemb;
 }
 
@@ -48,7 +48,7 @@ void auth_token_get(AuthenticationDetails *details) {
         size_t length = 0;
         fread((char **) &length, sizeof(size_t), 1, file);
         fread(token, sizeof(char), length, file);
-        buffer_write_little_endian(details->ms_access_token, token, length);
+        buffer_write(details->ms_access_token, token, length);
     }
     fclose(file);
 }
@@ -86,8 +86,6 @@ void poll_xbl_access(AuthenticationDetails *details) {
     if (curl){
         curl_easy_setopt(curl, CURLOPT_URL, "https://user.auth.xboxlive.com/user/authenticate");
 
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
-
         size_t json_len;
         const char *request_string = json_object_to_json_string_length(request, 0, &json_len);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_string);
@@ -104,14 +102,14 @@ void poll_xbl_access(AuthenticationDetails *details) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(INFO, "Sending: %s", request_string);
+        cmc_log(DEBUG, "Requesting XBL token with the following payload: %s", request_string);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_object *json_response = json_tokener_parse((char *) response->bytes);
-        cmc_log(INFO, "%s", json_object_get_string(json_response));
+        cmc_log(DEBUG, "Received the following response for the XBL token request: %s", json_object_get_string(json_response));
         json_object *json_token = json_object_object_get(json_response, "Token");
-        buffer_write_little_endian(details->xbl_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
+        buffer_write(details->xbl_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
     }
 }
 
@@ -165,9 +163,9 @@ void poll_xbl_user_authentication(char *device_code, AuthenticationDetails *deta
         } else if (response_code == 200) {
             json_object *json_response = json_tokener_parse((char *) response->bytes);
             json_object *json_token = json_object_object_get(json_response, "access_token");
-            cmc_log(INFO, "Received json_token: %s", json_object_get_string(json_token));
-            cmc_log(INFO, "Response: %s", json_object_get_string(json_response));
-            buffer_write_little_endian(details->ms_access_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
+            cmc_log(DEBUG, "Received Microsoft access token: %s", json_object_get_string(json_token));
+            buffer_write(details->ms_access_token, json_object_get_string(json_token),
+                         json_object_get_string_len(json_token));
             json_object_get(json_token);
             json_object_put(json_response);
         }
@@ -183,9 +181,6 @@ void authenticate_xbl(AuthenticationDetails *details) {
 
         char *data = "scope=service::user.auth.xboxlive.com::MBI_SSL&client_id=00000000441cc96b&response_type=device_code";
         curl_easy_setopt(curl, CURLOPT_URL, "https://login.live.com/oauth20_connect.srf");
-
-
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(data));
 
@@ -207,7 +202,7 @@ void authenticate_xbl(AuthenticationDetails *details) {
 
         buffer_remove(response, response->size);
 
-        cmc_log(DEBUG, "Device code %s", json_object_get_string(device_code));
+        cmc_log(DEBUG, "Received a device code %s", json_object_get_string(device_code));
 
         poll_xbl_user_authentication(json_object_get_string(device_code), details);
 
@@ -240,8 +235,6 @@ void authenticate_xsts(AuthenticationDetails *details) {
     if (curl){
         curl_easy_setopt(curl, CURLOPT_URL, "https://xsts.auth.xboxlive.com/xsts/authorize");
 
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
-
         size_t json_len;
         const char *request_string = json_object_to_json_string_length(request, 0, &json_len);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_string);
@@ -257,19 +250,19 @@ void authenticate_xsts(AuthenticationDetails *details) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(INFO, "Sending: %s", request_string);
+        cmc_log(DEBUG, "Requesting XSTS token with the following payload: %s", request_string);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_object *json_response = json_tokener_parse((char *) response->bytes);
-        cmc_log(INFO, "XSTS token %s", json_object_get_string(json_response));
+        cmc_log(DEBUG, "Received XSTS token: %s", json_object_get_string(json_response));
         json_object *json_token = json_object_object_get(json_response, "Token");
-        buffer_write_little_endian(details->xsts_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
+        buffer_write(details->xsts_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
         json_object *display_claims = json_object_object_get(json_response, "DisplayClaims");
         json_object *xui = json_object_object_get(display_claims, "xui");
         json_object *hash = json_object_array_get_idx(xui, 0);
         json_object *hash_gotten = json_object_object_get(hash, "uhs");
-        buffer_write_little_endian(details->player_hash, json_object_get_string(hash_gotten), json_object_get_string_len(hash_gotten));
+        buffer_write(details->player_hash, json_object_get_string(hash_gotten), json_object_get_string_len(hash_gotten));
 
         json_object_put(request);
         json_object_put(json_response);
@@ -282,10 +275,10 @@ void authenticate_minecraft(AuthenticationDetails *details) {
     char *start = "XBL3.0 x=";
     char *in_between = ";";
 
-    buffer_write_little_endian(identity, start, strlen(start));
-    buffer_write_little_endian(identity, details->player_hash->bytes, details->player_hash->size);
-    buffer_write_little_endian(identity, in_between, strlen(in_between));
-    buffer_write_little_endian(identity, details->xsts_token->bytes, details->xsts_token->size);
+    buffer_write(identity, start, strlen(start));
+    buffer_write(identity, details->player_hash->bytes, details->player_hash->size);
+    buffer_write(identity, in_between, strlen(in_between));
+    buffer_write(identity, details->xsts_token->bytes, details->xsts_token->size);
     json_object_object_add(request, "identityToken", json_object_new_string_len(identity->bytes, (int) identity->size));
 
     CURL *curl;
@@ -294,7 +287,6 @@ void authenticate_minecraft(AuthenticationDetails *details) {
     if (curl){
         curl_easy_setopt(curl, CURLOPT_URL, "https://api.minecraftservices.com/authentication/login_with_xbox");
 
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
 
         size_t json_len;
         const char *request_string = json_object_to_json_string_length(request, 0, &json_len);
@@ -311,18 +303,21 @@ void authenticate_minecraft(AuthenticationDetails *details) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(DEBUG, "Sending: %s", request_string);
+        cmc_log(DEBUG, "Requesting Minecraft access token with the following payload: %s", request_string);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_tokener *tokener = json_tokener_new();
         json_object *json_response = json_tokener_parse_ex(tokener, (char *) response->bytes, (int) response->size);
 
+        cmc_log(DEBUG, "Received a Minecraft access token with the following response: %s", json_object_get_string(json_response));
+
+
         json_object *json_token = json_object_object_get(json_response, "access_token");
-        buffer_write_little_endian(details->mc_token,
-                                   json_object_get_string(json_token),
-                                   json_object_get_string_len(json_token)
-       );
+        buffer_write(details->mc_token,
+                     json_object_get_string(json_token),
+                     json_object_get_string_len(json_token)
+        );
 
         json_object_put(request);
         json_object_put(json_response);
@@ -333,15 +328,12 @@ void authenticate_server() {
 
 }
 
-void get_player_profile(AuthenticationDetails *details) {
+void get_player_profile(AuthenticationDetails *details, ClientState *state) {
     CURL *curl;
 
     curl = curl_easy_init();
     if (curl){
         curl_easy_setopt(curl, CURLOPT_URL, "https://api.minecraftservices.com/minecraft/profile");
-
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
-
 
         struct curl_slist *headers = curl_slist_append(NULL, "Accept: application/json");
         char *auth_header = malloc(5012);
@@ -357,31 +349,43 @@ void get_player_profile(AuthenticationDetails *details) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(INFO, "Sending: %s", auth_header);
+        cmc_log(DEBUG, "Request profile information with the following payload: %s", auth_header);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_object *json_response = json_tokener_parse((char *) response->bytes);
-        cmc_log(DEBUG, "Player profile response %s", json_object_get_string(json_response));
+        cmc_log(DEBUG, "Received player profile information: %s", json_object_get_string(json_response));
         json_object *name = json_object_object_get(json_response, "name");
-        cmc_log(INFO, "Player Name %s", json_object_get_string(name));
+        NetworkBuffer *player_name = string_buffer_new(json_object_get_string(name));
+        json_object *uuid = json_object_object_get(json_response, "id");
+        NetworkBuffer *player_uuid = string_buffer_new(json_object_get_string(uuid));
+        state->profile_info->uuid = player_uuid;
+        state->profile_info->name = player_name;
         json_object_put(json_response);
     }
 }
 
-AuthenticationDetails *authenticate() {
+AuthenticationDetails *authenticate(ClientState *state) {
+    cmc_log(INFO, "Authenticating Minecraft account...");
+
     AuthenticationDetails *details = authentication_details_new();
     auth_token_get(details);
     if (details->ms_access_token->size == 0) {
         cmc_log(INFO, "No XBox live token saved, requesting new one ...");
         authenticate_xbl(details);
+    } else {
+        cmc_log(INFO, "Using saved XBL token...");
     }
 
     poll_xbl_access(details);
     authenticate_xsts(details);
     authenticate_minecraft(details);
 
-    get_player_profile(details);
+    cmc_log(INFO, "Successfully authenticated with Minecraft.");
+
+    get_player_profile(details, state);
+
+    cmc_log(INFO, "Successfully received player data for player %s.", state->profile_info->name->bytes);
 
     return details;
 }

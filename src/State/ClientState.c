@@ -3,24 +3,21 @@
 //
 
 #include <stdlib.h>
-#include <stdbool.h>
 #include "ClientState.h"
-#include "Position.h"
-#include "MCVarInt.h"
-#include "WorldState.h"
-
-
-struct ClientState {
-    bool completed_login;
-    Position *player_position;
-};
 
 
 ClientState *client_state_new() {
-	return (ClientState *) malloc(sizeof(ClientState));
+	ClientState *state = malloc(sizeof(ClientState));
+    ProfileInformation *info = malloc(sizeof(ProfileInformation));
+    state->profile_info = info;
+    return state;
 }
 
+
+
 void client_state_free(ClientState *clientState) {
-//	free(clientState->position);
+    free(clientState->profile_info);
+    free(clientState->position);
+    free(clientState->last_death_position);
 	free(clientState);
 }

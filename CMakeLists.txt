@@ -45,6 +45,8 @@ add_executable(scorpion
         src/Util/SocketWrapper.h
         src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h)
 
+add_compile_definitions(ACTIVE_LOG_LEVEL=INFO)
+
 if (WIN32)
     add_subdirectory(external/curl)
     set(BUILD_CURL_EXE OFF)

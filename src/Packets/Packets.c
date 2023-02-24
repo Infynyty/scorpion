@@ -133,7 +133,7 @@ void init_encryption(NetworkBuffer *shared_secret) {
 NetworkBuffer *packet_encode(PacketHeader **header) {
     NetworkBuffer *buffer = buffer_new();
     void *current_byte = ((PacketHeader **) (header)) + 1;
-    buffer_write_little_endian(buffer, (*header)->packet_id->bytes, (*header)->packet_id->size);
+    buffer_write(buffer, (*header)->packet_id->bytes, (*header)->packet_id->size);
     for (int i = 0; i < (*header)->members; ++i) {
         PacketField m_type = (*header)->member_types[i];
 
@@ -141,22 +141,32 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
         if (is_optional == NULL || *is_optional) {
             switch (m_type) {
                 case PKT_BOOL:
-                case PKT_UINT8:
-                case PKT_UINT16:
-                case PKT_UINT32:
-                case PKT_UINT64:
+                case PKT_UINT8: {
                     buffer_write(buffer, current_byte, get_types_size(m_type));
+                }
+                case PKT_UINT16: {
+                    uint16_t num = htons(*((u_int16_t *)current_byte));
+                    buffer_write(buffer, &num, get_types_size(m_type));
                     break;
+                }
+                case PKT_UINT32: {
+                    uint32_t num = htonl(*((u_int32_t *)current_byte));
+                    buffer_write(buffer, &num, get_types_size(m_type));
+                    break;
+                }
+                case PKT_UINT64: {
+                    uint64_t num = htonl(*((u_int64_t *)current_byte));
+                    buffer_write(buffer, &num, get_types_size(m_type));
+                    break;
+                }
                 case PKT_FLOAT:
                 case PKT_DOUBLE: {
-                    NetworkBuffer *swap = buffer_new();
-                    buffer_write(swap, current_byte, get_types_size(m_type));
-                    buffer_move(swap, get_types_size(m_type), buffer);
+                    buffer_write(buffer, current_byte, get_types_size(m_type));
                     break;
                 }
                 case PKT_VARINT: {
                     MCVarInt *varInt = (*(MCVarInt **) (current_byte));
-                    buffer_write_little_endian(buffer, varInt->bytes, varInt->size);
+                    buffer_write(buffer, varInt->bytes, varInt->size);
                     break;
                 }
                 case PKT_VARLONG:
@@ -165,16 +175,17 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                 case PKT_UUID: {
                     NetworkBuffer *uuid = *((NetworkBuffer **) current_byte);
                     buffer_write(buffer, uuid->bytes, uuid->size);
+#ifdef __LITTLE_ENDIAN__
+                    buffer_swap_endianness(uuid);
+#endif
                     break;
                 }
                 case PKT_BYTEARRAY:
                 case PKT_STRING: {
                     NetworkBuffer *string = *((NetworkBuffer **) current_byte);
                     MCVarInt *length = varint_encode(string->size);
-                    buffer_write_little_endian(buffer, length->bytes, length->size);
-                    buffer_write_little_endian(buffer, string->bytes, string->size);
-
-
+                    buffer_write(buffer, length->bytes, length->size);
+                    buffer_write(buffer, string->bytes, string->size);
                     free(length);
                     break;
                 }
@@ -200,17 +211,17 @@ NetworkBuffer *packet_compress(NetworkBuffer *packet) {
 
         MCVarInt *compressed_size = varint_encode(destLen + uncompressed_size->size);
 
-        buffer_write_little_endian(compressed, compressed_size->bytes, compressed_size->size);
-        buffer_write_little_endian(compressed, uncompressed_size->bytes, uncompressed_size->size);
-        buffer_write_little_endian(compressed, packet->bytes, packet->size);
+        buffer_write(compressed, compressed_size->bytes, compressed_size->size);
+        buffer_write(compressed, uncompressed_size->bytes, uncompressed_size->size);
+        buffer_write(compressed, packet->bytes, packet->size);
 
         free(temp);
     } else {
         MCVarInt *packet_length = varint_encode(packet->size + 1);
         uint8_t data_length = 0;
-        buffer_write_little_endian(compressed, packet_length->bytes, packet_length->size);
-        buffer_write_little_endian(compressed, &data_length, sizeof(uint8_t));
-        buffer_write_little_endian(compressed, packet->bytes, packet->size);
+        buffer_write(compressed, packet_length->bytes, packet_length->size);
+        buffer_write(compressed, &data_length, sizeof(uint8_t));
+        buffer_write(compressed, packet->bytes, packet->size);
     }
     buffer_free(packet);
     return compressed;
@@ -224,7 +235,7 @@ NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
         cmc_log(ERR, "OpenSSL encryption error.");
         exit(EXIT_FAILURE);
     }
-    buffer_write_little_endian(encrypted, temp, out_length);
+    buffer_write(encrypted, temp, out_length);
     return encrypted;
 }
 
@@ -235,8 +246,8 @@ void packet_send(PacketHeader **header) {
     } else {
         NetworkBuffer *length_prefixed = buffer_new();
         MCVarInt *packet_length = varint_encode(packet->size);
-        buffer_write_little_endian(length_prefixed, packet_length->bytes, packet_length->size);
-        buffer_write_little_endian(length_prefixed, packet->bytes, packet->size);
+        buffer_write(length_prefixed, packet_length->bytes, packet_length->size);
+        buffer_write(length_prefixed, packet->bytes, packet->size);
         buffer_free(packet);
         packet = length_prefixed;
     }
@@ -269,18 +280,21 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             }
             case PKT_UINT16: {
                 uint16_t uint16 = buffer_read(uint16_t, generic_packet);
+                uint16 = ntohs(uint16);
                 variable_pointer = &uint16;
                 variable_size = sizeof(uint16_t);
                 break;
             }
             case PKT_UINT32: {
                 uint32_t uint32 = buffer_read(uint32_t, generic_packet);
+                uint32 = ntohs(uint32);
                 variable_pointer = &uint32;
                 variable_size = sizeof(uint32_t);
                 break;
             }
             case PKT_UINT64: {
-                uint64_t uint64 = buffer_read_big_endian(uint64_t, generic_packet);
+                uint64_t uint64 = buffer_read(uint64_t, generic_packet);
+                uint64 = ntohs(uint64);
                 variable_pointer = &uint64;
                 variable_size = sizeof(uint64_t);
                 break;
@@ -315,6 +329,9 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             }
             case PKT_UUID: {
                 NetworkBuffer *uuid = buffer_new();
+#ifdef __LITTLE_ENDIAN__
+                buffer_swap_endianness(uuid);
+#endif
                 unsigned char *temp = malloc(2 * sizeof(uint64_t));
                 buffer_poll(generic_packet, 2 * sizeof(uint64_t), temp);
                 buffer_write(uuid, temp, 2 * sizeof(uint64_t));
@@ -401,7 +418,7 @@ NetworkBuffer *receive_bytes(uint64_t size) {
     NetworkBuffer *bytes = buffer_new();
     for (int i = 0; i < size; i++) {
         uint8_t byte = receive_byte();
-        buffer_write_little_endian(bytes, &byte, sizeof(byte));
+        buffer_write(bytes, &byte, sizeof(byte));
     }
     return bytes;
 }
@@ -447,7 +464,7 @@ GenericPacket *packet_receive() {
                        (Bytef *) compressed_data->bytes,
                        (uLong) compressed_length);
             NetworkBuffer *uncompressed_data = buffer_new();
-            buffer_write_little_endian(
+            buffer_write(
                     uncompressed_data,
                     uncompressed_data_temp,
                     uncompressed_length

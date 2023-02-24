@@ -36,16 +36,6 @@ void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest);
         _result;                                   \
     })
 
-#define buffer_read_big_endian(type, _buffer) ({ \
-        NetworkBuffer *_swap = buffer_new();      \
-        buffer_move(_buffer, sizeof(type), _swap);\
-        buffer_swap_endianness(_swap);\
-        type _result = 0;                             \
-        buffer_poll(_swap, sizeof(type), &_result);   \
-        buffer_free(_swap);                                         \
-        _result;                                   \
-    })
-
 #define buffer_receive_type(type) ({ \
         NetworkBuffer *_buffer = buffer_new();                             \
         type _result = 0;                                     \
@@ -75,23 +65,13 @@ NetworkBuffer *string_buffer_new(char *string);
 void buffer_free(NetworkBuffer *buffer);
 
 /**
- * Writes bytes to a buffer <em>in big endian order</em>.
- * @param buffer The buffer to be written to.
- * @param bytes  The array of bytes to be written into the buffer.
- * @param length_in_bytes   The size of the byte array.
- *
- * @warning Swaps the byte order of the bytes that were input. Input bytes should therefore be in little endian order.
- */
-void buffer_write(NetworkBuffer *buffer, void *bytes, size_t length_in_bytes);
-
-/**
  * Writes bytes to a buffer <em>in little endian order</em>. This can be used to write VarInts / VarLongs to a buffer
  * because their bytes have to be sent in little endian order.
  * @param buffer The buffer to be written to.
  * @param bytes  The array of bytes to be written into the buffer.
  * @param length_in_bytes   The size of the byte array.
  */
-void buffer_write_little_endian(NetworkBuffer *buffer, void *bytes, size_t length_in_bytes);
+void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes);
 
 /**
  * Reads a string from the incoming byte stream and writes its content to a buffer.
