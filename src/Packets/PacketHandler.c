@@ -125,7 +125,6 @@ static ServerState *serverState;
 //TODO: abstract method for packet receive using packet fields?
 void handle_packets(ClientState *clientState) {
 	serverState = serverstate_new();
-	Packets packet_type;
 	ConnectionState connectionState = LOGIN;
 
 	while (true) {
@@ -160,9 +159,10 @@ void handle_packets(ClientState *clientState) {
 			case LOGIN:
 				switch (generic_packet->packet_id) {
 					case DISCONNECT_LOGIN: {
-						DisconnectLoginPacket *packet = disconnect_login_packet_new(NULL);
-						packet_decode(&packet->_header, generic_packet->data);
-						packet_event(LOGIN_DISCONNECT_PKT, &packet->_header);
+						DisconnectLoginPacket packet = {._header = disconnect_login_packet_new()};
+						packet_decode(&packet._header, generic_packet->data);
+						packet_event(LOGIN_DISCONNECT_PKT, &packet._header);
+                        return;
 					}
 					case ENCRYPTION_REQUEST_ID: {
 						cmc_log(INFO, "Received encryption request.");
@@ -214,7 +214,7 @@ void handle_packets(ClientState *clientState) {
 			case PLAY:
 				switch (generic_packet->packet_id) {
 					case DISCONNECT_PLAY: {
-                        cmc_log(INFO, "Received Login Play Packet.");
+                        cmc_log(INFO, "Received Disconnect play packet.");
                         DisconnectPlayPacket packet = {._header = disconnect_play_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
                         packet_event(DISCONNECT_PLAY_PKT, &packet._header);

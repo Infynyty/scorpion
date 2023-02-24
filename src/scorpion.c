@@ -21,7 +21,7 @@ void print_disconnect(void *packet) {
 
 void print_disconnect_login(void *packet) {
 	DisconnectLoginPacket *reason = packet;
-	cmc_log(INFO, "Disconnected: %s", reason->reason->bytes);
+	cmc_log(ERR, "Disconnected during login with the following message: %s", reason->reason->bytes);
 }
 
 void handle_login_success(void *packet) {
@@ -77,15 +77,11 @@ void handle_init_pos(void *packet) {
 	packet_send(&cmd._header);
 	packet_free(&cmd._header);
 
-    cmc_log(INFO, "Spawned");
-
     for (int i = 0; i < 100; ++i) {
         ppr.yaw -= 5;
         packet_send(&ppr._header);
         usleep(1000 * 10);
     }
-
-    cmc_log(INFO, "Sent all packages");
 
     packet_free(&ppr._header);
 
@@ -106,6 +102,8 @@ void handle_init_pos(void *packet) {
 	packet_send(&ppr_new->_header);
 	packet_free(&ppr_new->_header);**/
 //    }
+
+
 }
 
 void handle_keep_alive(void *packet) {
@@ -142,7 +140,7 @@ void get_status() {
 
 }
 
-void handle_login() {
+void handle_login(ClientState *client) {
     char address[] = "localhost";
     NetworkBuffer *address_buf = buffer_new();
     buffer_write(address_buf, address, strlen(address));
@@ -156,21 +154,28 @@ void handle_login() {
     packet_send(&handshakePacket._header);
     packet_free(&handshakePacket._header);
 
-    NetworkBuffer *uuid = buffer_new();
-    uint64_t low = 0;
-    uint64_t high = 0;
-    buffer_write(uuid, &high, sizeof(uint64_t));
-    buffer_write(uuid, &low, sizeof(uint64_t));
+    BIGNUM *bn = BN_new();
+    NetworkBuffer *uuid_bn = buffer_clone(client->profile_info->name);
+    buffer_write(uuid_bn, "\0", 1);
+    BN_hex2bn(&bn, uuid_bn->bytes);
+    char *temp = malloc(16);
+    BN_bn2bin(bn, temp);
+    buffer_remove(uuid_bn, uuid_bn->size);
+    buffer_write(uuid_bn, temp, 16);
+
     LoginStartPacket start = {
             ._header = login_start_packet_header(),
-            .player_name = string_buffer_new("Infy"),
+            .player_name = buffer_clone(client->profile_info->name),
             .has_player_uuid = true,
-            .uuid = uuid
+            .uuid = uuid_bn
     };
     packet_send(&start._header);
     packet_free(&start._header);
 
-    cmc_log(INFO, "Login start");
+    cmc_log(INFO, "Sent login data for player %s with UUID %.32s.",
+            client->profile_info->name->bytes,
+            client->profile_info->uuid->bytes
+            );
 }
 
 void register_handlers() {
@@ -185,8 +190,8 @@ void register_handlers() {
 
 int main() {
 
-    ClientState *clientState = client_state_new();
-    authenticate(clientState);
+    ClientState *client = client_state_new();
+    authenticate(client);
 
     cmc_log(DEBUG, "Trying to connect to server socket...");
 	SocketWrapper *socket_wrapper = connect_wrapper();
@@ -195,17 +200,17 @@ int main() {
 
     register_handlers();
     cmc_log(DEBUG, "Registered handlers.");
-    handle_login();
+    handle_login(client);
     cmc_log(DEBUG, "Sent login packets.");
     cmc_log(INFO, "Ready to receive packets.");
     cmc_log(DEBUG, "Handling incoming packets...");
-    handle_packets(clientState);
+    handle_packets(client);
 
     cmc_log(INFO, "Disconnecting...");
 	deregister_all_handlers();
     cmc_log(DEBUG, "Deregistered all handlers.");
 	close(socket_wrapper->socket);
-	client_state_free(clientState);
+	client_state_free(client);
 	free(socket_wrapper);
 
     cmc_log(INFO, "Disconnected successfully.");

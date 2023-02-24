@@ -28,6 +28,8 @@ NetworkBuffer *buffer_new();
 
 void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest);
 
+NetworkBuffer *buffer_clone(NetworkBuffer *buffer);
+
 void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest);
 
 #define buffer_read(type, _buffer) ({    \

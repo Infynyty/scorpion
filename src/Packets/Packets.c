@@ -143,6 +143,7 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                 case PKT_BOOL:
                 case PKT_UINT8: {
                     buffer_write(buffer, current_byte, get_types_size(m_type));
+                    break;
                 }
                 case PKT_UINT16: {
                     uint16_t num = htons(*((u_int16_t *)current_byte));
@@ -174,10 +175,10 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     break;
                 case PKT_UUID: {
                     NetworkBuffer *uuid = *((NetworkBuffer **) current_byte);
-                    buffer_write(buffer, uuid->bytes, uuid->size);
 #ifdef __LITTLE_ENDIAN__
                     buffer_swap_endianness(uuid);
 #endif
+                    buffer_write(buffer, uuid->bytes, uuid->size);
                     break;
                 }
                 case PKT_BYTEARRAY:

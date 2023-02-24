@@ -1,8 +1,3 @@
-//
-// Created by Kasimir on 12.10.2022.
-//
-
-#include <stdbool.h>
 #include <stdlib.h>
 #include "NetworkBuffer.h"
 #include "SocketWrapper.h"
@@ -26,14 +21,14 @@ void buffer_free(NetworkBuffer *buffer) {
 void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
 	if (length_in_bytes == 0) return;
 	if (buffer->size + length_in_bytes >= MAX_BUFFER_SIZE) {
-		fprintf(stderr, "NetworkBuffer size (%d) too big!", buffer->size + length_in_bytes);
+		cmc_log(ERR, "NetworkBuffer size (%d) too big!", buffer->size + length_in_bytes);
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
 	}
 	//Resize array
 	char *temp = realloc(buffer->bytes, (buffer->size + length_in_bytes) * sizeof(char));
 	if (temp == NULL) {
-		fprintf(stderr, "Reallocation failed!");
+		cmc_log(ERR, "Reallocation failed!");
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
 	} else {
@@ -83,6 +78,12 @@ void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
 	}
 	memmove(dest, buffer->bytes, length);
 	buffer_remove(buffer, length);
+}
+
+NetworkBuffer *buffer_clone(NetworkBuffer *buffer) {
+    NetworkBuffer *clone = buffer_new();
+    buffer_write(clone, buffer->bytes, buffer->size);
+    return clone;
 }
 
 void buffer_move(NetworkBuffer *src, const size_t length, NetworkBuffer *dest) {
