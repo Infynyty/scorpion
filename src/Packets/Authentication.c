@@ -1,12 +1,18 @@
 #include "Authentication.h"
 #include "NetworkBuffer.h"
 #include "Logger.h"
+#include "Packets.h"
 #include <curl/curl.h>
 #include <stdlib.h>
 #include <json-c/json.h>
 #include <unistd.h>
+#include <openssl/bn.h>
+#include <openssl/sha.h>
+#include <openssl/evp.h>
+#include <ctype.h>
 
 #define MAX_TOKEN_LENGTH 2048
+
 
 typedef struct AuthenticationDetails {
     NetworkBuffer *ms_access_token;
@@ -15,6 +21,8 @@ typedef struct AuthenticationDetails {
     NetworkBuffer *mc_token;
     NetworkBuffer *player_hash;
 } AuthenticationDetails;
+
+static AuthenticationDetails *auth_details;
 
 AuthenticationDetails *authentication_details_new() {
     AuthenticationDetails *details = malloc(sizeof(AuthenticationDetails));
@@ -324,8 +332,80 @@ void authenticate_minecraft(AuthenticationDetails *details) {
     }
 }
 
-void authenticate_server() {
+void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencrypted_secret, ClientState *client) {
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
+    EVP_DigestUpdate(ctx, packet->server_id->bytes, packet->server_id->size);
+    EVP_DigestUpdate(ctx, unencrypted_secret->bytes, unencrypted_secret->size);
+    EVP_DigestUpdate(ctx, packet->public_key->bytes, packet->public_key->size);
+    unsigned char *temp = malloc(128);
+    unsigned int length;
+    EVP_DigestFinal(ctx, temp, &length);
+    BIGNUM *num = BN_bin2bn(temp, length, NULL);
 
+    char *result = malloc(128);
+    bool negative = false;
+    if (BN_is_bit_set(num, 159))
+    {
+        negative = true;
+        strcpy(result, "-");
+        unsigned char *temp2 = malloc(BN_num_bytes(num));
+        BN_bn2bin(num, temp2);
+        for (int i = 0; i < BN_num_bytes(num); i++) {
+            temp2[i] = ~temp2[i];
+        }
+        BN_bin2bn(temp2, BN_num_bytes(num), num);
+        free(temp2);
+
+        BN_add_word(num, 1);
+    }
+    char *hexdigest = BN_bn2hex(num);
+    for(int i = 0; hexdigest[i]; i++){
+        hexdigest[i] = tolower(hexdigest[i]);
+    }
+    while (*hexdigest == '0') {
+        hexdigest++;
+    }
+    negative ? strcat(result, hexdigest) : strcpy(result, hexdigest);
+    OPENSSL_free(hexdigest);
+    BN_free(num);
+    free(temp);
+
+
+    json_object *request = json_object_new_object();
+    json_object_object_add(request, "accessToken", json_object_new_string_len(auth_details->mc_token->bytes, auth_details->mc_token->size));
+    json_object_object_add(request, "selectedProfile", json_object_new_string_len(client->profile_info->uuid->bytes, 32));
+    json_object_object_add(request, "serverId", json_object_new_string(result));
+
+    CURL *curl;
+
+    curl = curl_easy_init();
+    if (curl){
+        curl_easy_setopt(curl, CURLOPT_URL, "https://sessionserver.mojang.com/session/minecraft/join");
+
+        size_t json_len;
+        const char *request_string = json_object_to_json_string_length(request, 0, &json_len);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_string);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, json_len);
+
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+
+
+        struct curl_slist *headers = curl_slist_append(NULL, "Content-Type: application/json");
+        headers = curl_slist_append(headers, "Accept: application/json");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        NetworkBuffer *response = buffer_new();
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
+
+        cmc_log(DEBUG, "Requesting to join server with the following payload: %s", request_string);
+
+        CURLcode res = curl_easy_perform(curl);
+
+        json_object *json_response = json_tokener_parse((char *) response->bytes);
+        cmc_log(DEBUG, "Received server auth response: %s", json_object_get_string(json_response));
+    }
 }
 
 void get_player_profile(AuthenticationDetails *details, ClientState *state) {
@@ -387,5 +467,6 @@ AuthenticationDetails *authenticate(ClientState *state) {
 
     cmc_log(INFO, "Successfully received player data for player %s.", state->profile_info->name->bytes);
 
+    auth_details = details;
     return details;
 }

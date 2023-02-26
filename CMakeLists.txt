@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
 project(scorpion C)
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
 
 set(CMAKE_C_STANDARD 11)
 
@@ -46,7 +45,6 @@ add_executable(scorpion
         src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h)
 
 add_compile_definitions(ACTIVE_LOG_LEVEL=INFO)
-add_link_options(lm)
 
 find_package(CURL REQUIRED)
 target_link_libraries(scorpion CURL::libcurl)

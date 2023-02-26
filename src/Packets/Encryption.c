@@ -56,11 +56,12 @@ void generate_hash(NetworkBuffer *secret, NetworkBuffer *public_key) {
     BIGNUM *bn = BN_bin2bn(buffer, 20, NULL);
 }
 
-EncryptionResponsePacket *encryption_response_generate(
-		NetworkBuffer *public_key,
-		NetworkBuffer *verify_token,
-		NetworkBuffer *secret
-) {
+void encryption_response_generate(
+        EncryptionResponsePacket *packet,
+        NetworkBuffer *public_key,
+        NetworkBuffer *verify_token,
+        NetworkBuffer *secret
+        ) {
 	generate_secret(secret);
 	NetworkBuffer *shared_secret = buffer_new();
     buffer_write(shared_secret, secret->bytes, AES_BLOCK_SIZE);
@@ -88,6 +89,7 @@ EncryptionResponsePacket *encryption_response_generate(
     free(encrypted_nonce);
     RSA_free(rsa);
 
-	return encryption_response_packet_new(shared_secret, verify_token);
+    packet->shared_secret = shared_secret;
+    packet->verify_token = verify_token;
 }
 

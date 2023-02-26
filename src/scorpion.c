@@ -8,6 +8,7 @@
 #include "Authentication.h"
 #include <openssl/bn.h>
 #include <openssl/evp.h>
+#include <ctype.h>
 
 void print_status_response(void *packet) {
 	StatusResponsePacket *response = packet;
@@ -169,7 +170,6 @@ void register_handlers() {
 
 
 int main() {
-
     ClientState *client = client_state_new();
     authenticate(client);
 

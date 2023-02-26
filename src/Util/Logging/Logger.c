@@ -27,6 +27,8 @@ void cmc_log(enum CMC_LOG_LEVEL level, const char *message, ...) {
        printf("\033[1;31m");
 	} else if (level == DEBUG) {
         printf("\033[0;36m");
+    }  else if (level == WARN) {
+        printf("\033[0;33m");
     }
 
 	time_t mytime = time(NULL);

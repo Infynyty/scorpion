@@ -9,6 +9,7 @@
 #include "NBTParser.h"
 #include "ServerState.h"
 #include "Encryption.h"
+#include "Authentication.h"
 
 
 // Connection status: STATUS
@@ -160,24 +161,26 @@ void handle_packets(ClientState *clientState) {
 					}
 					case ENCRYPTION_REQUEST_ID: {
 						cmc_log(INFO, "Received encryption request.");
-						EncryptionRequestPacket *packet = encryption_request_packet_new(NULL, NULL, NULL);
-						packet_decode(&packet->_header, generic_packet->data);
+						EncryptionRequestPacket packet = {._header = encryption_request_packet_new()};
+						packet_decode(&packet._header, generic_packet->data);
 
-						serverState->public_key = packet->public_key;
-						serverState->verify_token = packet->verify_token;
+						serverState->public_key = packet.public_key;
+						serverState->verify_token = packet.verify_token;
 
 						NetworkBuffer *secret = buffer_new();
-						EncryptionResponsePacket *response = encryption_response_generate(
-								packet->public_key,
-								packet->verify_token,
-								secret
-						);
-						packet_send(&response->_header);
+                        EncryptionResponsePacket response = {._header = encryption_response_packet_new()};
+                        encryption_response_generate(&response,
+                                                     packet.public_key,
+                                                     packet.verify_token,
+                                                     secret
+                        );
+                        authenticate_server(&packet, secret, clientState);
+						packet_send(&response._header);
 						cmc_log(INFO, "Sent encryption response.");
-						//init_encryption(secret);
+						init_encryption(secret);
 						buffer_free(secret);
 
-						packet_event(ENCRYPTION_REQUEST_PKT, &packet->_header);
+						packet_event(ENCRYPTION_REQUEST_PKT, &packet._header);
 						break;
 					}
 					case LOGIN_SUCCESS_ID: {

@@ -74,6 +74,7 @@ void packet_free(PacketHeader **packet) {
             case PKT_LOGIN_PROPERTIES:
             case PKT_UUID:
             case PKT_NBTTAG:
+            case PKT_CHAT:
             case PKT_STRING: {
                 NetworkBuffer **string = (NetworkBuffer **) ptr;
                 buffer_free(*string);
@@ -81,13 +82,14 @@ void packet_free(PacketHeader **packet) {
                 ptr = string;
                 break;
             }
+            case PKT_SKIP:
+                break;
             case PKT_VARLONG:
             case PKT_IDENTIFIER:
             case PKT_ENTITYMETA:
             case PKT_SLOT:
             case PKT_OPTIONAL:
             case PKT_ENUM:
-            case PKT_CHAT:
             default:
                 cmc_log(ERR, "Used unsupported type at packet_free(): %d", m_type);
                 exit(EXIT_FAILURE);
@@ -397,6 +399,10 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 variable_pointer = &properties;
                 variable_size = sizeof(NetworkBuffer *);
                 break;
+            }
+            case PKT_SKIP: {
+                cmc_log(WARN, "Skipping packet fields for packet with id 0x%x.", varint_decode((*header)->packet_id->bytes));
+                return;
             }
             case PKT_IDENTIFIER:
             case PKT_VARLONG:
@@ -777,7 +783,8 @@ PacketHeader *player_chat_message_header(
             PKT_BOOL,
             PKT_BYTEARRAY,
             PKT_STRING,
-            PKT_UINT64,
+            PKT_SKIP
+            /**PKT_UINT64,
             PKT_UINT64,
             PKT_VARINT,
             PKT_PREV_MSG_ARRAY,
@@ -787,11 +794,11 @@ PacketHeader *player_chat_message_header(
             PKT_VARINT,
             PKT_CHAT,
             PKT_BOOL,
-            PKT_CHAT
+            PKT_CHAT **/
     };
-    packet_generate_header(header, typeArray, 16, 0x31, CLIENTBOUND, PLAY);
+    packet_generate_header(header, typeArray, 6, 0x31, CLIENTBOUND, PLAY);
     header->optionals[3] = has_signature;
-    header->optionals[10] = has_unsigned_content;
-    header->optionals[15] = has_target_network;
+    /**header->optionals[10] = has_unsigned_content;
+    header->optionals[15] = has_target_network;**/
     return header;
 }
