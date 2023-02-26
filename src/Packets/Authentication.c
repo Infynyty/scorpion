@@ -3,8 +3,8 @@
 #include "Logger.h"
 #include <curl/curl.h>
 #include <stdlib.h>
-#include <json.h>
-#include <libc.h>
+#include <json-c/json.h>
+#include <unistd.h>
 
 #define MAX_TOKEN_LENGTH 2048
 
@@ -49,8 +49,8 @@ void auth_token_get(AuthenticationDetails *details) {
         fread((char **) &length, sizeof(size_t), 1, file);
         fread(token, sizeof(char), length, file);
         buffer_write(details->ms_access_token, token, length);
+        fclose(file);
     }
-    fclose(file);
 }
 
 void auth_token_save(AuthenticationDetails *details) {

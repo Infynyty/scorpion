@@ -8,6 +8,7 @@
 #include <openssl/ssl.h>
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
+#include <arpa/inet.h>
 
 /** Utility **/
 
@@ -156,13 +157,22 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     break;
                 }
                 case PKT_UINT64: {
-                    uint64_t num = htonl(*((u_int64_t *)current_byte));
+                    uint64_t num = htobe64(*((u_int64_t *)current_byte));
                     buffer_write(buffer, &num, get_types_size(m_type));
                     break;
                 }
-                case PKT_FLOAT:
+                case PKT_FLOAT: {
+                    uint32_t num;
+                    memmove(&num, current_byte, sizeof(float));
+                    num = htobe32(num);
+                    buffer_write(buffer, &num, sizeof(float ));
+                    break;
+                }
                 case PKT_DOUBLE: {
-                    buffer_write(buffer, current_byte, get_types_size(m_type));
+                    uint64_t num;
+                    memmove(&num, current_byte, sizeof(double ));
+                    num = htobe64(num);
+                    buffer_write(buffer, &num, sizeof(double ));
                     break;
                 }
                 case PKT_VARINT: {
@@ -295,7 +305,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             }
             case PKT_UINT64: {
                 uint64_t uint64 = buffer_read(uint64_t, generic_packet);
-                uint64 = ntohs(uint64);
+                uint64 = be64toh(uint64);
                 variable_pointer = &uint64;
                 variable_size = sizeof(uint64_t);
                 break;

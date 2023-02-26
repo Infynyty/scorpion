@@ -5,12 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "MCVarInt.h"
-#include "../Logging/Logger.h"
-#include "../SocketWrapper.h"
-#include "../NetworkBuffer.h"
 #include <stdint.h>
-#include <math.h>
 #include <stdbool.h>
+#include <math.h>
 
 #define BYTE_LENGTH_IN_BIT 8
 #define MAX_VARINT_LENGTH_IN_BYTES 5

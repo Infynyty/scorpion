@@ -35,13 +35,6 @@
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
-// TODO: Write event listener system
-
-// Linked List system: ll for every packet type, array of lls? (no of total packets: ?)
-// UUID for every packet != packet id
-
-
-
 typedef void (*HandlePacket)(void *packet);
 
 typedef struct HandlerNode {
