@@ -32,6 +32,7 @@
 #define SET_HELD_ITEM_ID                0x4a
 #define UPDATE_RECIPES_ID               0x69
 #define KEEP_ALIVE_CLIENTBOUND_ID       0x1f
+#define PLAYER_CHAT_MESSAGE_ID           0x31
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
@@ -243,6 +244,16 @@ void handle_packets(ClientState *clientState) {
                         KeepAliveClientboundPacket packet = {._header = keep_alive_clientbound_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
                         packet_event(KEEP_ALIVE_CLIENTBOUND_PKT, &packet._header);
+                        break;
+                    }
+                    case PLAYER_CHAT_MESSAGE_ID: {
+                        PlayerChatMessagePacket packet = {._header = player_chat_message_header(
+                                &packet.has_message_signature,
+                                &packet.has_unsigned_content,
+                                &packet.network_target_name_present
+                                )};
+                        packet_decode(&packet._header, generic_packet->data);
+                        packet_event(PLAYER_CHAT_MESSAGE_PKT, &packet._header);
                         break;
                     }
 					case UPDATE_RECIPES_ID: {

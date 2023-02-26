@@ -276,7 +276,11 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
         PacketField field = (*header)->member_types[i];
 
         bool *is_optional = (*header)->optionals[i];
-        if (is_optional != NULL && !(*is_optional)) continue;
+        if (is_optional != NULL && !(*is_optional)) {
+            ptr = (void *) ptr;
+            ptr += get_types_size(field);
+            continue;
+        }
 
         void *variable_pointer;
         size_t variable_size;
@@ -368,6 +372,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 variable_size = sizeof(NetworkBuffer *);
                 break;
             }
+            case PKT_CHAT:
             case PKT_STRING: {
                 NetworkBuffer *string = buffer_new();
                 buffer_read_array(generic_packet, string);
@@ -393,7 +398,6 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 variable_size = sizeof(NetworkBuffer *);
                 break;
             }
-            case PKT_CHAT:
             case PKT_IDENTIFIER:
             case PKT_VARLONG:
             case PKT_ENTITYMETA:
@@ -402,7 +406,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             case PKT_ARRAY:
             case PKT_ENUM:
             default:
-                cmc_log(ERR, "Tried receiving unhandled generic_packet field %d", field);
+                cmc_log(ERR, "Tried decoding unhandled generic_packet field %d", field);
                 exit(EXIT_FAILURE);
         }
         memcpy(ptr, variable_pointer, variable_size);

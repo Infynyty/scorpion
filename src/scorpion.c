@@ -84,26 +84,6 @@ void handle_init_pos(void *packet) {
     }
 
     packet_free(&ppr._header);
-
-	double currentX = sync->y;
-//    for (int i = 0; i < 100; ++i) {
-	/**SetPlayerPosAndRotPacket *ppr_new = set_player_pos_and_rot_packet_new(
-			sync->x + 0.05,
-			sync->y,
-			sync->z,
-			sync->yaw,
-			sync->pitch,
-			true
-	);
-	currentX += -100.0f;
-	ppr_new->y = currentX;
-	cmc_log(DEBUG, "Position x: %lf", currentX);
-	cmc_log(DEBUG, "Sending packet x: %lf", currentX);
-	packet_send(&ppr_new->_header);
-	packet_free(&ppr_new->_header);**/
-//    }
-
-
 }
 
 void handle_keep_alive(void *packet) {
