@@ -3,7 +3,6 @@
 //
 
 #include "WorldState.h"
-#include "Position.h"
 #include "Packets.h"
 #include "Logger.h"
 #include <stdint.h>
@@ -100,29 +99,45 @@ ChunkData *chunk_data_new(ChunkDataPacket *packet) {
 }
 
 void add_chunk(ChunkDataPacket *chunk, WorldState *state) {
-    ChunkData *loaded_chunks = state->chunks;
-    if (loaded_chunks == NULL) {
-        loaded_chunks->next = chunk_data_new(chunk);
+    ChunkData *new_chunk = chunk_data_new(chunk);
+    ChunkData *current_chunk = state->chunks;
+    ChunkData *prev_chunk;
+    if (current_chunk == NULL) {
+        current_chunk->next = new_chunk;
         return;
     }
-    while (loaded_chunks->next != NULL) {
-        loaded_chunks = loaded_chunks->next;
+    if (current_chunk->x == chunk->chunk_x && current_chunk->z == chunk->chunk_x) {
+        state->chunks = new_chunk;
+        new_chunk->next = current_chunk->next;
+        chunk_data_free(current_chunk);
     }
-    loaded_chunks->next = chunk_data_new(chunk);
+    prev_chunk = current_chunk;
+    current_chunk = current_chunk->next;
+    while (current_chunk != NULL) {
+        if (current_chunk->x == chunk->chunk_x && current_chunk->z == chunk->chunk_x) {
+            prev_chunk->next = new_chunk;
+            new_chunk->next = current_chunk->next;
+            chunk_data_free(current_chunk);
+            return;
+        }
+        prev_chunk = current_chunk;
+        current_chunk = current_chunk->next;
+    }
+    prev_chunk->next = current_chunk;
 }
 
-void remove_chunk(int64_t x, int64_t z, WorldState *state) {
+void remove_chunk(UnloadChunkPacket *packet, WorldState *state) {
     ChunkData *current_chunk = state->chunks;
     ChunkData *prev_chunk;
     if (current_chunk == NULL) return;
-    if (current_chunk->x == x && current_chunk->z == z) {
+    if (current_chunk->x == packet->chunk_x && current_chunk->z == packet->chunk_z) {
         state->chunks = current_chunk->next;
         chunk_data_free(current_chunk);
     }
     prev_chunk = current_chunk;
     current_chunk = current_chunk->next;
     while (current_chunk != NULL) {
-        if (current_chunk->x == x && current_chunk->z == z) {
+        if (current_chunk->x == packet->chunk_x && current_chunk->z == packet->chunk_z) {
             prev_chunk->next = current_chunk->next;
             chunk_data_free(current_chunk);
         }

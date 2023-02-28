@@ -24,6 +24,7 @@ uint8_t get_types_size(PacketField type) {
             return sizeof(uint16_t);
         case PKT_UINT32:
             return sizeof(uint32_t);
+        case PKT_INT32:
         case PKT_UINT64:
             return sizeof(uint64_t);
         case PKT_FLOAT:
@@ -157,6 +158,10 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     uint32_t num = htonl(*((u_int32_t *)current_byte));
                     buffer_write(buffer, &num, get_types_size(m_type));
                     break;
+                }
+                case PKT_INT32: {
+                    int32_t num = htobe32(*((u_int32_t *)current_byte));
+                    buffer_write(buffer, &num, get_types_size(m_type));
                 }
                 case PKT_UINT64: {
                     uint64_t num = htobe64(*((u_int64_t *)current_byte));
@@ -307,6 +312,13 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 uint32 = ntohs(uint32);
                 variable_pointer = &uint32;
                 variable_size = sizeof(uint32_t);
+                break;
+            }
+            case PKT_INT32: {
+                int32_t int32 = buffer_read(int32_t, generic_packet);
+                int32 = ntohs(int32);
+                variable_pointer = &int32;
+                variable_size = sizeof(int32_t);
                 break;
             }
             case PKT_UINT64: {
@@ -807,12 +819,22 @@ PacketHeader *player_chat_message_header(
 PacketHeader *chunk_data_packet_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
-            PKT_UINT32,
-            PKT_UINT32,
+            PKT_INT32,
+            PKT_INT32,
             PKT_NBTTAG,
             PKT_BYTEARRAY,
             PKT_SKIP
     };
     packet_generate_header(header, typeArray, 5, 0x20, CLIENTBOUND, PLAY);
+    return header;
+}
+
+PacketHeader *unload_chunk_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
+    PacketField typeArray[] = {
+            PKT_INT32,
+            PKT_INT32
+    };
+    packet_generate_header(header, typeArray, 2, 0x1b, CLIENTBOUND, PLAY);
     return header;
 }

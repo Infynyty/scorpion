@@ -86,6 +86,17 @@ void handle_init_pos(void *packet, PlayState *state) {
     packet_free(&ppr._header);
 }
 
+void handle_update_chunk(void *packet, PlayState *state) {
+    ChunkDataPacket *data = (ChunkDataPacket *) packet;
+    add_chunk(data, state->worldState);
+    cmc_log(INFO, "Updated chunk at %d, %d", data->chunk_x, data->chunk_z);
+}
+
+void handle_remove_chunk(void *packet, PlayState *state) {
+    UnloadChunkPacket *data = (UnloadChunkPacket *) packet;
+    remove_chunk(data, state->worldState);
+}
+
 void handle_keep_alive(void *packet, PlayState *state) {
     cmc_log(INFO, "Received keep alive packet.");
     KeepAliveClientboundPacket *keep_alive = (KeepAliveClientboundPacket *) packet;
@@ -165,6 +176,8 @@ void register_handlers() {
     register_handler(&handle_login_play, LOGIN_PLAY_PKT);
     register_handler(&handle_init_pos, SYNCHRONIZE_PLAYER_POS_PKT);
     register_handler(&handle_keep_alive, KEEP_ALIVE_CLIENTBOUND_PKT);
+    register_handler(&handle_update_chunk, CHUNK_DATA_PKT);
+    register_handler(&handle_remove_chunk, UNLOAD_CHUNK_PKT);
 }
 
 

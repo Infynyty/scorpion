@@ -36,6 +36,7 @@
 #define KEEP_ALIVE_CLIENTBOUND_ID       0x1f
 #define PLAYER_CHAT_MESSAGE_ID          0x31
 #define CHUNK_DATA_ID                   0x20
+#define UNLOAD_CHUNK_ID                 0x1b
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
@@ -176,7 +177,7 @@ void handle_packets(PlayState *state) {
                                                      packet.verify_token,
                                                      secret
                         );
-                        authenticate_server(&packet, secret, state);
+                        authenticate_server(&packet, secret, state->clientState);
 						packet_send(&response._header);
 						cmc_log(INFO, "Sent encryption response.");
 						init_encryption(secret);
@@ -249,6 +250,12 @@ void handle_packets(PlayState *state) {
                         ChunkDataPacket packet = {._header = chunk_data_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
                         packet_event(CHUNK_DATA_PKT, &packet._header, state);
+                        break;
+                    }
+                    case UNLOAD_CHUNK_ID: {
+                        UnloadChunkPacket packet = {._header = unload_chunk_packet_new()};
+                        packet_decode(&packet._header, generic_packet->data);
+                        packet_event(UNLOAD_CHUNK_PKT, &packet._header, state);
                         break;
                     }
                     case KEEP_ALIVE_CLIENTBOUND_ID: {

@@ -12,7 +12,7 @@
 #include "ConnectionState.h"
 
 typedef enum PacketField {
-	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_FLOAT,
+	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_INT32, PKT_FLOAT,
 	PKT_DOUBLE, PKT_STRING, PKT_CHAT, PKT_IDENTIFIER, PKT_VARINT, PKT_VARLONG,
 	PKT_ENTITYMETA, PKT_SLOT, PKT_NBTTAG, PKT_OPTIONAL, PKT_ARRAY, PKT_ENUM,
 	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY, PKT_LOGIN_PROPERTIES, PKT_PREV_MSG_ARRAY, PKT_SKIP
@@ -362,6 +362,14 @@ typedef struct __attribute__((__packed__)) ChunkDataPacket {
 } ChunkDataPacket;
 
 PacketHeader *chunk_data_packet_new();
+
+typedef struct __attribute__((__packed__)) UnloadChunkPacket {
+    PacketHeader *_header;
+    int32_t chunk_x;
+    int32_t chunk_z;
+} UnloadChunkPacket;
+
+PacketHeader *unload_chunk_packet_new();
 
 
 #endif //CMC_PACKETS_H

@@ -8,6 +8,7 @@
 #include "WorldState.h"
 #include "NetworkBuffer.h"
 #include "Position.h"
+#include "Packets.h"
 
 #define BLOCK_STATES 23232
 
@@ -45,6 +46,10 @@ void world_state_free(WorldState *state);
 ChunkData *handle_chunk_data(NetworkBuffer *chunk_data);
 
 void init_global_palette(WorldState *world_state);
+
+void add_chunk(ChunkDataPacket *chunk, WorldState *state);
+
+void remove_chunk(UnloadChunkPacket *packet, WorldState *state);
 
 
 #endif //CMC_WORLDSTATE_H

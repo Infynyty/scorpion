@@ -13,9 +13,9 @@ typedef enum NBT_TAGS {
 	TAG_COMPOUND, TAG_INT_ARRAY, TAG_LONG_ARRAY
 } NBT_TAGS;
 
-void handle_compound();
+void handle_compound(NetworkBuffer *buffer);
 
-void handle_string();
+void handle_string(NetworkBuffer *buffer);
 
 void consume_nbt_data(NetworkBuffer *buffer) {
 //    NetworkBuffer *test = buffer_new();
