@@ -34,7 +34,8 @@
 #define SET_HELD_ITEM_ID                0x4a
 #define UPDATE_RECIPES_ID               0x69
 #define KEEP_ALIVE_CLIENTBOUND_ID       0x1f
-#define PLAYER_CHAT_MESSAGE_ID           0x31
+#define PLAYER_CHAT_MESSAGE_ID          0x31
+#define CHUNK_DATA_ID                   0x20
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
@@ -142,8 +143,8 @@ void handle_packets(PlayState *state) {
 				switch (generic_packet->packet_id) {
 					case STATUS_RESPONSE: {
 						StatusResponsePacket packet = {._header = status_response_packet_new()};
-						packet_decode(packet._header, generic_packet->data);
-						packet_event(STATUS_RESPONSE_PKT, packet._header, state);
+						packet_decode(&packet._header, generic_packet->data);
+						packet_event(STATUS_RESPONSE_PKT, &packet._header, state);
 						break;
 					}
 					default:
@@ -244,6 +245,12 @@ void handle_packets(PlayState *state) {
 						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet._header, state);
 						break;
 					}
+                    case CHUNK_DATA_ID: {
+                        ChunkDataPacket packet = {._header = chunk_data_packet_new()};
+                        packet_decode(&packet._header, generic_packet->data);
+                        packet_event(CHUNK_DATA_PKT, &packet._header, state);
+                        break;
+                    }
                     case KEEP_ALIVE_CLIENTBOUND_ID: {
                         KeepAliveClientboundPacket packet = {._header = keep_alive_clientbound_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);

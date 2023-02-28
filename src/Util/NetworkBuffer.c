@@ -71,14 +71,20 @@ void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 	buffer->size = size_after_remove;
 }
 
+void buffer_peek(NetworkBuffer *buffer, const size_t length, void *dest) {
+    if (length > buffer->size) {
+        cmc_log(ERR, "Tried polling %d bytes of a buffer with size %d", length, buffer->size);
+        exit(EXIT_FAILURE);
+    }
+    memmove(dest, buffer->bytes, length);
+}
+
 void buffer_poll(NetworkBuffer *buffer, const size_t length, void *dest) {
-	if (length > buffer->size) {
-		cmc_log(ERR, "Tried polling %d bytes of a buffer with size %d", length, buffer->size);
-		exit(EXIT_FAILURE);
-	}
-	memmove(dest, buffer->bytes, length);
+    buffer_peek(buffer, length, dest);
 	buffer_remove(buffer, length);
 }
+
+
 
 NetworkBuffer *buffer_clone(NetworkBuffer *buffer) {
     NetworkBuffer *clone = buffer_new();
@@ -119,6 +125,23 @@ int32_t buffer_read_varint(NetworkBuffer *buffer) {
 		}
 	}
 	return result;
+}
+
+int32_t buffer_peek_varint(NetworkBuffer *buffer) {
+    unsigned char current_byte;
+    uint8_t *ptr = buffer->bytes;
+    int result = 0;
+    const int CONTINUE_BIT = 0b10000000;
+    const int SEGMENT_BITS = 0b01111111;
+    for (int i = 0; i < 5; ++i) {
+        current_byte = *ptr;
+        result += (current_byte & SEGMENT_BITS) << (8 * i - i);
+        if ((current_byte & CONTINUE_BIT) != (CONTINUE_BIT)) {
+            break;
+        }
+        ptr++;
+    }
+    return result;
 }
 
 void buffer_read_array(NetworkBuffer *src, NetworkBuffer *dest) {

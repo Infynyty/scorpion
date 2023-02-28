@@ -7,6 +7,9 @@
 
 #include <stdlib.h>
 #include "PlayState.h"
+#include "ServerState.h"
+#include "ClientState.h"
+#include "WorldState.h"
 
 typedef struct PlayState {
     ServerState *serverState;

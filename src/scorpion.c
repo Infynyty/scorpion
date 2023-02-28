@@ -6,31 +6,30 @@
 #include "SocketWrapper.h"
 #include "Packets/Packets.h"
 #include "Authentication.h"
+#include "WorldState.h"
 #include <openssl/bn.h>
-#include <openssl/evp.h>
-#include <ctype.h>
 
-void print_status_response(void *packet) {
+void print_status_response(void *packet, PlayState *state) {
 	StatusResponsePacket *response = packet;
 	buffer_print_string(response->response);
 }
 
-void print_disconnect(void *packet) {
+void print_disconnect(void *packet, PlayState *state) {
 	DisconnectPlayPacket *reason = packet;
 	cmc_log(INFO, "Disconnected: %s", reason->reason->bytes);
 }
 
-void print_disconnect_login(void *packet) {
+void print_disconnect_login(void *packet, PlayState *state) {
 	DisconnectLoginPacket *reason = packet;
 	cmc_log(ERR, "Disconnected during login with the following message: %s", reason->reason->bytes);
 }
 
-void handle_login_success(void *packet) {
+void handle_login_success(void *packet, PlayState *state) {
 	LoginSuccessPacket *success = packet;
 	cmc_log(INFO, "Logged in with username %s.", success->username->bytes);
 }
 
-void handle_login_play(void *packet) {
+void handle_login_play(void *packet, PlayState *state) {
 	LoginPlayPacket *play = packet;
 	cmc_log(INFO, "Logged in with gamemode %d.", play->gamemode);
 
@@ -49,7 +48,7 @@ void handle_login_play(void *packet) {
 	packet_free(&cip._header);
 }
 
-void handle_init_pos(void *packet) {
+void handle_init_pos(void *packet, PlayState *state) {
 	SynchronizePlayerPositionPacket *sync = packet;
 	ConfirmTeleportationPacket confirmation = {
             ._header = confirm_teleportation_packet_new(),
@@ -87,7 +86,7 @@ void handle_init_pos(void *packet) {
     packet_free(&ppr._header);
 }
 
-void handle_keep_alive(void *packet) {
+void handle_keep_alive(void *packet, PlayState *state) {
     cmc_log(INFO, "Received keep alive packet.");
     KeepAliveClientboundPacket *keep_alive = (KeepAliveClientboundPacket *) packet;
     KeepAliveServerboundPacket response = {
@@ -98,7 +97,7 @@ void handle_keep_alive(void *packet) {
     packet_free(&response._header);
 }
 
-void handle_encryption(void *packet) {
+void handle_encryption(void *packet, PlayState *state) {
 	cmc_log(INFO, "Encryption request received");
 }
 
@@ -171,6 +170,12 @@ void register_handlers() {
 
 int main() {
     PlayState *play_state = play_state_new();
+    init_global_palette(play_state->worldState);
+    print_block_id(0, play_state->worldState);
+
+    exit(EXIT_SUCCESS);
+
+
     authenticate(play_state->clientState);
 
     cmc_log(DEBUG, "Trying to connect to server socket...");

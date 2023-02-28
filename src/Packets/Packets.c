@@ -159,7 +159,7 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     break;
                 }
                 case PKT_UINT64: {
-                    uint64_t num = htonll(*((u_int64_t *)current_byte));
+                    uint64_t num = htobe64(*((u_int64_t *)current_byte));
                     buffer_write(buffer, &num, get_types_size(m_type));
                     break;
                 }
@@ -173,7 +173,7 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                 case PKT_DOUBLE: {
                     uint64_t num;
                     memmove(&num, current_byte, sizeof(double ));
-                    num = htonll(num);
+                    num = htobe64(num);
                     buffer_write(buffer, &num, sizeof(double ));
                     break;
                 }
@@ -311,7 +311,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             }
             case PKT_UINT64: {
                 uint64_t uint64 = buffer_read(uint64_t, generic_packet);
-                uint64 = ntohll(uint64);
+                uint64 = be64toh(uint64);
                 variable_pointer = &uint64;
                 variable_size = sizeof(uint64_t);
                 break;
