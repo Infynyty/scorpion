@@ -159,21 +159,21 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     break;
                 }
                 case PKT_UINT64: {
-                    uint64_t num = htobe64(*((u_int64_t *)current_byte));
+                    uint64_t num = htonll(*((u_int64_t *)current_byte));
                     buffer_write(buffer, &num, get_types_size(m_type));
                     break;
                 }
                 case PKT_FLOAT: {
                     uint32_t num;
                     memmove(&num, current_byte, sizeof(float));
-                    num = htobe32(num);
+                    num = htonl(num);
                     buffer_write(buffer, &num, sizeof(float ));
                     break;
                 }
                 case PKT_DOUBLE: {
                     uint64_t num;
                     memmove(&num, current_byte, sizeof(double ));
-                    num = htobe64(num);
+                    num = htonll(num);
                     buffer_write(buffer, &num, sizeof(double ));
                     break;
                 }
@@ -311,7 +311,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             }
             case PKT_UINT64: {
                 uint64_t uint64 = buffer_read(uint64_t, generic_packet);
-                uint64 = be64toh(uint64);
+                uint64 = ntohll(uint64);
                 variable_pointer = &uint64;
                 variable_size = sizeof(uint64_t);
                 break;
@@ -800,5 +800,19 @@ PacketHeader *player_chat_message_header(
     header->optionals[3] = has_signature;
     /**header->optionals[10] = has_unsigned_content;
     header->optionals[15] = has_target_network;**/
+    return header;
+}
+
+//TODO: Complete packet
+PacketHeader *chunk_data_packet_new() {
+    PacketHeader *header = malloc(sizeof(PacketHeader));
+    PacketField typeArray[] = {
+            PKT_UINT32,
+            PKT_UINT32,
+            PKT_NBTTAG,
+            PKT_BYTEARRAY,
+            PKT_SKIP
+    };
+    packet_generate_header(header, typeArray, 5, 0x20, CLIENTBOUND, PLAY);
     return header;
 }

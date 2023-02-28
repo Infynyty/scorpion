@@ -170,8 +170,8 @@ void register_handlers() {
 
 
 int main() {
-    ClientState *client = client_state_new();
-    authenticate(client);
+    PlayState *play_state = play_state_new();
+    authenticate(play_state->clientState);
 
     cmc_log(DEBUG, "Trying to connect to server socket...");
 	SocketWrapper *socket_wrapper = connect_wrapper();
@@ -180,17 +180,16 @@ int main() {
 
     register_handlers();
     cmc_log(DEBUG, "Registered handlers.");
-    handle_login(client);
+    handle_login(play_state->clientState);
     cmc_log(DEBUG, "Sent login packets.");
     cmc_log(INFO, "Ready to receive packets.");
-    cmc_log(DEBUG, "Handling incoming packets...");
-    handle_packets(client);
+    handle_packets(play_state);
 
     cmc_log(INFO, "Disconnecting...");
 	deregister_all_handlers();
     cmc_log(DEBUG, "Deregistered all handlers.");
 	close(socket_wrapper->socket);
-	client_state_free(client);
+    play_state_free(play_state);
 	free(socket_wrapper);
 
     cmc_log(INFO, "Disconnected successfully.");

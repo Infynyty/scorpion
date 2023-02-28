@@ -353,6 +353,16 @@ typedef struct __attribute__((__packed__)) PlayerChatMessagePacket {
 
 PacketHeader *player_chat_message_header(bool *has_signature, bool *has_unsigned_content, bool *has_target_network);
 
+typedef struct __attribute__((__packed__)) ChunkDataPacket {
+    int32_t chunk_x;
+    int32_t chunk_z;
+    NetworkBuffer *heightmap;
+    NetworkBuffer *data;
+} ChunkDataPacket;
+
+PacketHeader *chunk_data_packet_new();
+
+
 #endif //CMC_PACKETS_H
 
 

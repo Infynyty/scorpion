@@ -13,36 +13,6 @@
 
 #define MAX_TOKEN_LENGTH 2048
 
-
-typedef struct AuthenticationDetails {
-    NetworkBuffer *ms_access_token;
-    NetworkBuffer *xbl_token;
-    NetworkBuffer *xsts_token;
-    NetworkBuffer *mc_token;
-    NetworkBuffer *player_hash;
-} AuthenticationDetails;
-
-static AuthenticationDetails *auth_details;
-
-AuthenticationDetails *authentication_details_new() {
-    AuthenticationDetails *details = malloc(sizeof(AuthenticationDetails));
-    details->ms_access_token = buffer_new();
-    details->xbl_token = buffer_new();
-    details->xsts_token = buffer_new();
-    details->mc_token = buffer_new();
-    details->player_hash = buffer_new();
-    return details;
-}
-
-void authentication_details_free(AuthenticationDetails *details) {
-    buffer_free(details->ms_access_token);
-    buffer_free(details->xbl_token);
-    buffer_free(details->xsts_token);
-    buffer_free(details->mc_token);
-    buffer_free(details->player_hash);
-    free(details);
-}
-
 size_t save_response(char *ptr, size_t size, size_t nmemb, void *userdata) {
     NetworkBuffer *buffer = userdata;
     buffer_write(buffer, ptr, size * nmemb);
@@ -373,8 +343,14 @@ void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencry
 
 
     json_object *request = json_object_new_object();
-    json_object_object_add(request, "accessToken", json_object_new_string_len(auth_details->mc_token->bytes, auth_details->mc_token->size));
-    json_object_object_add(request, "selectedProfile", json_object_new_string_len(client->profile_info->uuid->bytes, 32));
+    json_object_object_add(request, "accessToken", json_object_new_string_len(
+            client->auth_details->mc_token->bytes,
+            client->auth_details->mc_token->size
+            ));
+    json_object_object_add(request, "selectedProfile", json_object_new_string_len(
+            client->profile_info->uuid->bytes,
+            32
+            ));
     json_object_object_add(request, "serverId", json_object_new_string(result));
 
     CURL *curl;
@@ -387,8 +363,6 @@ void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencry
         const char *request_string = json_object_to_json_string_length(request, 0, &json_len);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_string);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, json_len);
-
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
 
 
         struct curl_slist *headers = curl_slist_append(NULL, "Content-Type: application/json");
@@ -445,28 +419,24 @@ void get_player_profile(AuthenticationDetails *details, ClientState *state) {
     }
 }
 
-AuthenticationDetails *authenticate(ClientState *state) {
+void authenticate(ClientState *state) {
     cmc_log(INFO, "Authenticating Minecraft account...");
 
-    AuthenticationDetails *details = authentication_details_new();
-    auth_token_get(details);
-    if (details->ms_access_token->size == 0) {
+    auth_token_get(state->auth_details);
+    if (state->auth_details->ms_access_token->size == 0) {
         cmc_log(INFO, "No XBox live token saved, requesting new one ...");
-        authenticate_xbl(details);
+        authenticate_xbl(state->auth_details);
     } else {
         cmc_log(INFO, "Using saved XBL token...");
     }
 
-    poll_xbl_access(details);
-    authenticate_xsts(details);
-    authenticate_minecraft(details);
+    poll_xbl_access(state->auth_details);
+    authenticate_xsts(state->auth_details);
+    authenticate_minecraft(state->auth_details);
 
     cmc_log(INFO, "Successfully authenticated with Minecraft.");
 
-    get_player_profile(details, state);
+    get_player_profile(state->auth_details, state);
 
     cmc_log(INFO, "Successfully received player data for player %s.", state->profile_info->name->bytes);
-
-    auth_details = details;
-    return details;
 }

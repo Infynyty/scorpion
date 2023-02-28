@@ -4,6 +4,7 @@
 #include "ConnectionState/ConnectionState.h"
 #include "SocketWrapper.h"
 #include "../State/ClientState.h"
+#include "PlayState.h"
 
 typedef enum Packets {
 	// Handshake
@@ -36,9 +37,9 @@ typedef enum Packets {
 	SET_PLAYER_ROT_PKT
 } Packets;
 
-void handle_packets(ClientState *clientState);
+void handle_packets(PlayState *state);
 
-int register_handler(void (*handle)(void *packet), Packets packet_type);
+int register_handler(void (*handle)(void *packet, PlayState *state), Packets packet_type);
 
 void deregister_all_handlers();
 

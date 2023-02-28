@@ -32,7 +32,7 @@ void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_byt
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
 	} else {
-		buffer->bytes = temp;
+		buffer->bytes = (uint8_t *) temp;
 	}
 	//Write new bytes to the last location of the old array
 	memmove(buffer->bytes + buffer->size, bytes, length_in_bytes);
@@ -66,7 +66,7 @@ void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
 	} else {
-		buffer->bytes = temp;
+		buffer->bytes = (uint8_t *) temp;
 	}
 	buffer->size = size_after_remove;
 }
@@ -107,7 +107,7 @@ void buffer_print_string(NetworkBuffer *buffer) {
 }
 
 int32_t buffer_read_varint(NetworkBuffer *buffer) {
-	unsigned char current_byte = 0;
+	unsigned char current_byte;
 	int result = 0;
 	const int CONTINUE_BIT = 0b10000000;
 	const int SEGMENT_BITS = 0b01111111;

@@ -10,6 +10,7 @@
 #include "ServerState.h"
 #include "Encryption.h"
 #include "Authentication.h"
+#include "PlayState.h"
 
 
 // Connection status: STATUS
@@ -37,12 +38,12 @@
 
 void consume_packet(SocketWrapper *socket, int length_in_bytes);
 
-typedef void (*HandlePacket)(void *packet);
+typedef void (*HandlePacket)(void *packet, PlayState *state);
 
 typedef struct HandlerNode {
 	int id;
 
-	void (*handle)(void *packet);
+	void (*handle)(void *packet, PlayState *state);
 
 	struct HandlerNode *next;
 } HandlerNode;
@@ -101,14 +102,14 @@ void remove_node(int id, Packets packet_type) {
 	}
 }
 
-int register_handler(void (*handle)(void *packet), Packets packet_type) {
+int register_handler(void (*handle)(void *packet, PlayState *state), Packets packet_type) {
 	return add_node(handle, packet_type);
 }
 
-void packet_event(Packets packet_type, PacketHeader **packet) {
+void packet_event(Packets packet_type, PacketHeader **packet, PlayState *state) {
 	HandlerNode *current_node = packet_handlers[packet_type];
 	while (current_node != NULL) {
-		(*current_node->handle)(packet);
+		(*current_node->handle)(packet, state);
 		current_node = current_node->next;
 	}
 	packet_free(packet);
@@ -118,7 +119,7 @@ static ServerState *serverState;
 
 
 //TODO: abstract method for packet receive using packet fields?
-void handle_packets(ClientState *clientState) {
+void handle_packets(PlayState *state) {
 	serverState = serverstate_new();
 	ConnectionState connectionState = LOGIN;
 
@@ -142,7 +143,7 @@ void handle_packets(ClientState *clientState) {
 					case STATUS_RESPONSE: {
 						StatusResponsePacket packet = {._header = status_response_packet_new()};
 						packet_decode(packet._header, generic_packet->data);
-						packet_event(STATUS_RESPONSE_PKT, packet._header);
+						packet_event(STATUS_RESPONSE_PKT, packet._header, state);
 						break;
 					}
 					default:
@@ -156,7 +157,7 @@ void handle_packets(ClientState *clientState) {
 					case DISCONNECT_LOGIN: {
 						DisconnectLoginPacket packet = {._header = disconnect_login_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
-						packet_event(LOGIN_DISCONNECT_PKT, &packet._header);
+						packet_event(LOGIN_DISCONNECT_PKT, &packet._header, state);
                         return;
 					}
 					case ENCRYPTION_REQUEST_ID: {
@@ -174,13 +175,13 @@ void handle_packets(ClientState *clientState) {
                                                      packet.verify_token,
                                                      secret
                         );
-                        authenticate_server(&packet, secret, clientState);
+                        authenticate_server(&packet, secret, state);
 						packet_send(&response._header);
 						cmc_log(INFO, "Sent encryption response.");
 						init_encryption(secret);
 						buffer_free(secret);
 
-						packet_event(ENCRYPTION_REQUEST_PKT, &packet._header);
+						packet_event(ENCRYPTION_REQUEST_PKT, &packet._header, state);
 						break;
 					}
 					case LOGIN_SUCCESS_ID: {
@@ -190,7 +191,7 @@ void handle_packets(ClientState *clientState) {
 						connectionState = PLAY;
 						cmc_log(DEBUG, "Switched connection state to PLAY.");
 
-						packet_event(LOGIN_SUCCESS_PKT, &packet._header);
+						packet_event(LOGIN_SUCCESS_PKT, &packet._header, state);
 						break;
 					}
 					case SET_COMPRESSION_ID: {
@@ -199,7 +200,7 @@ void handle_packets(ClientState *clientState) {
 
                         set_compression_threshold(varint_decode(packet.threshold->bytes));
 						cmc_log(INFO, "Enabled compression.");
-                        packet_event(SET_COMPRESSION_PKT, &packet._header);
+                        packet_event(SET_COMPRESSION_PKT, &packet._header, state);
 						break;
 					}
 					default:
@@ -214,39 +215,39 @@ void handle_packets(ClientState *clientState) {
                         cmc_log(INFO, "Received Disconnect play packet.");
                         DisconnectPlayPacket packet = {._header = disconnect_play_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
-                        packet_event(DISCONNECT_PLAY_PKT, &packet._header);
+                        packet_event(DISCONNECT_PLAY_PKT, &packet._header, state);
 						return;
 					}
 					case LOGIN_PLAY_ID: {
 						cmc_log(INFO, "Received Login Play Packet.");
 						LoginPlayPacket packet = {._header = login_play_packet_new(&packet.has_death_location)};
 						packet_decode(&packet._header, generic_packet->data);
-						packet_event(LOGIN_PLAY_PKT, &packet._header);
+						packet_event(LOGIN_PLAY_PKT, &packet._header, state);
 						break;
 					}
 					case CHANGE_DIFFICULTY_ID: {
 						ChangeDifficultyPacket packet = {._header = change_difficulty_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
 						cmc_log(INFO, "Set initial difficulty to: %d.", packet.difficulty);
-						packet_event(CHANGE_DIFFICULTY_PKT, &packet._header);
+						packet_event(CHANGE_DIFFICULTY_PKT, &packet._header, state);
 						break;
 					}
 					case PLAYER_ABILITIES_CB_ID: {
 						PlayerAbilitiesCBPacket packet = {._header = player_abilities_cb_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
-						packet_event(PLAYER_ABILITIES_CB_PKT, &packet._header);
+						packet_event(PLAYER_ABILITIES_CB_PKT, &packet._header, state);
 						break;
 					}
 					case SYNCHRONIZE_PLAYER_POSITION_ID: {
 						SynchronizePlayerPositionPacket packet = {._header = synchronize_player_position_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
-						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet._header);
+						packet_event(SYNCHRONIZE_PLAYER_POS_PKT, &packet._header, state);
 						break;
 					}
                     case KEEP_ALIVE_CLIENTBOUND_ID: {
                         KeepAliveClientboundPacket packet = {._header = keep_alive_clientbound_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
-                        packet_event(KEEP_ALIVE_CLIENTBOUND_PKT, &packet._header);
+                        packet_event(KEEP_ALIVE_CLIENTBOUND_PKT, &packet._header, state);
                         break;
                     }
                     case PLAYER_CHAT_MESSAGE_ID: {
@@ -256,7 +257,7 @@ void handle_packets(ClientState *clientState) {
                                 &packet.network_target_name_present
                                 )};
                         packet_decode(&packet._header, generic_packet->data);
-                        packet_event(PLAYER_CHAT_MESSAGE_PKT, &packet._header);
+                        packet_event(PLAYER_CHAT_MESSAGE_PKT, &packet._header, state);
                         break;
                     }
 					case UPDATE_RECIPES_ID: {

@@ -15,8 +15,19 @@ typedef struct ProfileInformation {
     NetworkBuffer *uuid;
 } ProfileInformation;
 
+
+typedef struct AuthenticationDetails {
+    NetworkBuffer *ms_access_token;
+    NetworkBuffer *xbl_token;
+    NetworkBuffer *xsts_token;
+    NetworkBuffer *mc_token;
+    NetworkBuffer *player_hash;
+} AuthenticationDetails;
+
 typedef struct ClientStatestruct {
     ProfileInformation *profile_info;
+    AuthenticationDetails *auth_details;
+    bool is_spawned;
 	Position *position;
 	bool is_hardcore;
 	uint8_t gamemode;
@@ -24,6 +35,10 @@ typedef struct ClientStatestruct {
 	int teleportID;
 	Position *last_death_position;
 } ClientState;
+
+AuthenticationDetails *authentication_details_new();
+
+void authentication_details_free(AuthenticationDetails *details);
 
 ClientState *client_state_new();
 
