@@ -44,8 +44,6 @@ void world_state_free(WorldState *state);
 
 ChunkData *handle_chunk_data(NetworkBuffer *chunk_data);
 
-void print_block_id(int32_t id, WorldState *state);
-
 void init_global_palette(WorldState *world_state);
 
 

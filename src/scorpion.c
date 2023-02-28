@@ -170,11 +170,9 @@ void register_handlers() {
 
 int main() {
     PlayState *play_state = play_state_new();
+    cmc_log(DEBUG, "Initializing global palette...");
     init_global_palette(play_state->worldState);
-    print_block_id(0, play_state->worldState);
-
-    exit(EXIT_SUCCESS);
-
+    cmc_log(DEBUG, "Successfully initialized global palette.");
 
     authenticate(play_state->clientState);
 

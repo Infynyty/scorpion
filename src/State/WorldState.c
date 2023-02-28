@@ -42,13 +42,8 @@ void init_global_palette(WorldState *world_state) {
         }
         json_object_iter_next(&iterator);
     }
+    json_object_put(report);
 }
-
-void print_block_id(int32_t id, WorldState *state) {
-    cmc_log(INFO, "Block name for id %d: %s", id, state->global_palette[id]->name);
-}
-
-
 
 void chunk_data_free(ChunkData *data) {
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
@@ -56,8 +51,6 @@ void chunk_data_free(ChunkData *data) {
         buffer_free(data->biomes[i]);
     }
 }
-
-
 
 WorldState *world_state_new() {
     return malloc(sizeof(WorldState));
@@ -120,7 +113,7 @@ void add_chunk(ChunkDataPacket *chunk, WorldState *state) {
 
 void remove_chunk(int64_t x, int64_t z, WorldState *state) {
     ChunkData *current_chunk = state->chunks;
-    ChunkData *prev_chunk = state->chunks;
+    ChunkData *prev_chunk;
     if (current_chunk == NULL) return;
     if (current_chunk->x == x && current_chunk->z == z) {
         state->chunks = current_chunk->next;
