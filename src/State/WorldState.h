@@ -17,9 +17,9 @@ typedef enum PaletteType {
 } PaletteType;
 
 typedef struct PalettedContainer {
-    uint_8 bits_per_entry;
+    uint8_t bits_per_entry;
     PaletteType palette_type;
-    int32_t palette[];
+    int32_t *palette;
     NetworkBuffer *data;
 } PalettedContainer;
 
@@ -56,6 +56,8 @@ void init_global_palette(WorldState *world_state);
 void add_chunk(ChunkDataPacket *chunk, WorldState *state);
 
 void remove_chunk(UnloadChunkPacket *packet, WorldState *state);
+
+BlockState *get_block_at(Position *position, WorldState *state);
 
 
 #endif //CMC_WORLDSTATE_H

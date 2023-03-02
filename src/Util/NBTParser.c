@@ -7,6 +7,7 @@
 #include "NBTParser.h"
 #include "NetworkBuffer.h"
 #include "Logger.h"
+#include <arpa/inet.h>
 
 typedef enum NBT_TAGS {
 	TAG_END, TAG_BYTE, TAG_SHORT, TAG_INT, TAG_LONG, TAG_FLOAT, TAG_DOUBLE, TAG_BYTE_ARRAY, TAG_STRING, TAG_LIST,
@@ -76,7 +77,7 @@ void handle_int_array(NetworkBuffer *buffer) {
 }
 
 void handle_long_array(NetworkBuffer *buffer) {
-	int32_t length = buffer_read(int32_t, buffer);
+	int32_t length = be32toh(buffer_read(int32_t, buffer));
 	for (int i = 0; i < length; ++i) {
 		handle_long(buffer);
 	}

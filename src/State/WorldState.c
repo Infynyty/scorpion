@@ -64,9 +64,8 @@ void world_state_free(WorldState *state) {
     free(state);
 }
 
-PalettedContainer *palettet_container_new(NetworkBuffer *raw_data) {
+PalettedContainer *block_palettet_container_new(NetworkBuffer *raw_data) {
     PalettedContainer *container = malloc(sizeof(PalettedContainer));
-    container->palette = buffer_new();
     uint8_t bits_per_entry = buffer_read(uint8_t, raw_data);
 
     if (bits_per_entry == 0) {
@@ -86,8 +85,44 @@ PalettedContainer *palettet_container_new(NetworkBuffer *raw_data) {
     if (container->palette_type == SINGLE_VALUE) {
         container->palette = malloc(1 * sizeof(int32_t));
         container->palette[0] = buffer_read_varint(raw_data);
+        int32_t data_length = buffer_read_varint(raw_data);
+        return container;
     } else if (container->palette_type == INDIRECT) {
         int32_t length = buffer_read_varint(raw_data);
+        container->palette = malloc(length * sizeof(int32_t));
+        for (int i = 0; i < length; i++) {
+            container->palette[i] = buffer_read_varint(raw_data);
+        }
+    }
+    int32_t data_length = buffer_read_varint(raw_data);
+    container->data = buffer_new();
+    buffer_move(raw_data, data_length * sizeof(uint64_t), container->data);
+    return container;
+}
+
+PalettedContainer *biomes_palettet_container_new(NetworkBuffer *raw_data) {
+    PalettedContainer *container = malloc(sizeof(PalettedContainer));
+    uint8_t bits_per_entry = buffer_read(uint8_t, raw_data);
+
+    if (bits_per_entry == 0) {
+        container->bits_per_entry = 0;
+        container->palette_type = SINGLE_VALUE;
+    } else if (bits_per_entry <= 3){
+        container->bits_per_entry = bits_per_entry;
+        container->palette_type = INDIRECT;
+    } else {
+        container->bits_per_entry = 6;
+        container->palette_type = DIRECT;
+    }
+
+    if (container->palette_type == SINGLE_VALUE) {
+        container->palette = malloc(1 * sizeof(int32_t));
+        container->palette[0] = buffer_read_varint(raw_data);
+        int32_t data_length = buffer_read_varint(raw_data);
+        return container;
+    } else if (container->palette_type == INDIRECT) {
+        int32_t length = buffer_read_varint(raw_data);
+        container->palette = malloc(length * sizeof(int32_t));
         for (int i = 0; i < length; i++) {
             container->palette[i] = buffer_read_varint(raw_data);
         }
@@ -105,9 +140,13 @@ ChunkData *chunk_data_new(ChunkDataPacket *packet) {
     PalettedContainer **block_states = malloc(sizeof(PalettedContainer) * SECTIONS_IN_CHUNK_COLUMN);
     NetworkBuffer *raw_data = buffer_clone(packet->data);
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
-        PalettedContainer *container = palettet_container_new(raw_data);
+        uint16_t non_air_blocks = be16toh(buffer_read(uint16_t, raw_data));
+        PalettedContainer *container = block_palettet_container_new(raw_data);
         block_states[i] = container;
+        biomes_palettet_container_new(raw_data);
     }
+    data->block_states = block_states;
+    data->next = NULL;
     buffer_free(raw_data);
     return data;
 }
@@ -182,21 +221,14 @@ BlockState *get_block_at(Position *position, WorldState *state) {
     int8_t z_row = (int8_t) ((int) position->z % 16);
 
     int32_t block_bit_position = (int32_t) (section->bits_per_entry * (256 * y_layer + 16 * z_row + position->x));
+    int16_t block = *(section->data->bytes + (block_bit_position / 8));
+    int8_t offset_from_MSB = (int8_t) ((int) block_bit_position % 8);
+    int8_t offset_from_LSB = (int8_t) ((sizeof(block) * 8) - section->bits_per_entry);
 
-    return NULL;
-}
+    block <<= offset_from_MSB;
+    block >>= offset_from_LSB;
 
-ChunkData *handle_chunk_data(NetworkBuffer *chunk_data) {
-    uint8_t bits_per_entry = buffer_read(uint8_t, chunk_data);
-    PalettedContainerType type;
-    if (bits_per_entry == 0) {
-        type = SINGLE_VALUE;
-    } else if (bits_per_entry <= 4) {
-        type = INDIRECT;
-    } else {
-        type = DIRECT;
-    }
-
+    return state->global_palette[section->palette[block]];
 }
 
 

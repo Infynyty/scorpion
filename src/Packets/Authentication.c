@@ -333,11 +333,12 @@ void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencry
     for(int i = 0; hexdigest[i]; i++){
         hexdigest[i] = tolower(hexdigest[i]);
     }
+    char *to_free = hexdigest;
     while (*hexdigest == '0') {
         hexdigest++;
     }
     negative ? strcat(result, hexdigest) : strcpy(result, hexdigest);
-    OPENSSL_free(hexdigest);
+    OPENSSL_free(to_free);
     BN_free(num);
     free(temp);
 

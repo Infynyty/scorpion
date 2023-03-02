@@ -22,9 +22,9 @@ uint8_t get_types_size(PacketField type) {
             return sizeof(uint8_t);
         case PKT_UINT16:
             return sizeof(uint16_t);
+        case PKT_INT32:
         case PKT_UINT32:
             return sizeof(uint32_t);
-        case PKT_INT32:
         case PKT_UINT64:
             return sizeof(uint64_t);
         case PKT_FLOAT:
@@ -57,6 +57,7 @@ void packet_free(PacketHeader **packet) {
             case PKT_UINT8:
             case PKT_UINT16:
             case PKT_UINT32:
+            case PKT_INT32:
             case PKT_UINT64:
             case PKT_FLOAT:
             case PKT_DOUBLE:
@@ -160,18 +161,21 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     break;
                 }
                 case PKT_INT32: {
+                    int32_t num;
 #ifdef __APPLE__
-                    int32_t num = htonl(*((u_int32_t *)current_byte));
+                    num = htonl(*((u_int32_t *)current_byte));
 #elifdef __linux__
-                    int32_t num = htobe32(*((u_int32_t *)current_byte));
+                    num = htobe32(*((u_int32_t *)current_byte));
 #endif
                     buffer_write(buffer, &num, get_types_size(m_type));
+                    break;
                 }
                 case PKT_UINT64: {
+                    int64_t num;
 #ifdef __APPLE__
-                    uint64_t num = htonll(*((u_int64_t *)current_byte));
+                    num = htonll(*((u_int64_t *)current_byte));
 #elifdef __linux__
-                    uint64_t num = htobe64(*((u_int64_t *)current_byte));
+                    num = htobe64(*((u_int64_t *)current_byte));
 #endif
                     buffer_write(buffer, &num, get_types_size(m_type));
                     break;
@@ -321,14 +325,14 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             }
             case PKT_UINT32: {
                 uint32_t uint32 = buffer_read(uint32_t, generic_packet);
-                uint32 = ntohs(uint32);
+                uint32 = ntohl(uint32);
                 variable_pointer = &uint32;
                 variable_size = sizeof(uint32_t);
                 break;
             }
             case PKT_INT32: {
                 int32_t int32 = buffer_read(int32_t, generic_packet);
-                int32 = ntohs(int32);
+                int32 = ntohl(int32);
                 variable_pointer = &int32;
                 variable_size = sizeof(int32_t);
                 break;
