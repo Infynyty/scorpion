@@ -12,11 +12,22 @@
 
 #define BLOCK_STATES 23232
 
+typedef enum PaletteType {
+    SINGLE_VALUE, INDIRECT, DIRECT
+} PaletteType;
+
+typedef struct PalettedContainer {
+    uint_8 bits_per_entry;
+    PaletteType palette_type;
+    int32_t palette[];
+    NetworkBuffer *data;
+} PalettedContainer;
+
 typedef struct ChunkData {
     int32_t x;
     int32_t z;
-    NetworkBuffer **block_states;
-    NetworkBuffer **biomes;
+    PalettedContainer **block_states;
+    PalettedContainer **biomes;
     struct ChunkData *next;
 } ChunkData;
 
@@ -33,11 +44,6 @@ typedef struct WorldState {
     ChunkData *chunks;
     BlockState* global_palette[BLOCK_STATES];
 } WorldState;
-
-typedef enum PalettedContainerType {
-    SINGLE_VALUE, INDIRECT, DIRECT
-} PalettedContainerType;
-
 
 WorldState *world_state_new();
 

@@ -7,7 +7,9 @@
 #include "Logger.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <json-c/json.h>
+#include <math.h>
 
 #define SECTIONS_IN_CHUNK_COLUMN 24
 
@@ -15,8 +17,9 @@
 
 
 void init_global_palette(WorldState *world_state) {
-    json_object *report = json_object_from_file("blocks.json");;
+    json_object *report = json_object_from_file("blocks.json");
     if (report == NULL) {
+        cmc_log(INFO, "Error: %s", json_util_get_last_err());
         cmc_log(ERR, "Could not find blocks report. Exiting...");
         exit(EXIT_FAILURE);
     }
@@ -46,8 +49,10 @@ void init_global_palette(WorldState *world_state) {
 
 void chunk_data_free(ChunkData *data) {
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
-        buffer_free(data->block_states[i]);
-        buffer_free(data->biomes[i]);
+        free(data->block_states[i]->palette);
+        buffer_free(data->block_states[i]->data);
+        free(data->biomes[i]->palette);
+        buffer_free(data->biomes[i]->data);
     }
 }
 
@@ -59,43 +64,62 @@ void world_state_free(WorldState *state) {
     free(state);
 }
 
+PalettedContainer *palettet_container_new(NetworkBuffer *raw_data) {
+    PalettedContainer *container = malloc(sizeof(PalettedContainer));
+    container->palette = buffer_new();
+    uint8_t bits_per_entry = buffer_read(uint8_t, raw_data);
+
+    if (bits_per_entry == 0) {
+        container->bits_per_entry = 0;
+        container->palette_type = SINGLE_VALUE;
+    } else if (bits_per_entry <= 4) {
+        container->bits_per_entry = 4;
+        container->palette_type = INDIRECT;
+    } else if (bits_per_entry <= 8){
+        container->bits_per_entry = bits_per_entry;
+        container->palette_type = INDIRECT;
+    } else {
+        container->bits_per_entry = ceil(log2(BLOCK_STATES));
+        container->palette_type = DIRECT;
+    }
+
+    if (container->palette_type == SINGLE_VALUE) {
+        container->palette = malloc(1 * sizeof(int32_t));
+        container->palette[0] = buffer_read_varint(raw_data);
+    } else if (container->palette_type == INDIRECT) {
+        int32_t length = buffer_read_varint(raw_data);
+        for (int i = 0; i < length; i++) {
+            container->palette[i] = buffer_read_varint(raw_data);
+        }
+    }
+    int32_t data_length = buffer_read_varint(raw_data);
+    container->data = buffer_new();
+    buffer_move(raw_data, data_length * sizeof(uint64_t), container->data);
+    return container;
+}
+
 ChunkData *chunk_data_new(ChunkDataPacket *packet) {
     ChunkData *data = malloc(sizeof(ChunkData));
     data->x = packet->chunk_x;
     data->z = packet->chunk_z;
-    NetworkBuffer **block_states = malloc(sizeof(NetworkBuffer) * SECTIONS_IN_CHUNK_COLUMN);
+    PalettedContainer **block_states = malloc(sizeof(PalettedContainer) * SECTIONS_IN_CHUNK_COLUMN);
     NetworkBuffer *raw_data = buffer_clone(packet->data);
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
-        buffer_read(uint8_t, raw_data);
-        //inside palette container
-        NetworkBuffer *chunk_sec_data = buffer_new();
-        uint8_t bits_per_entry = buffer_read(uint8_t, raw_data);
-        buffer_write(chunk_sec_data, &bits_per_entry, sizeof(uint8_t));
-        if (bits_per_entry == 0) {
-            int32_t single_id = buffer_read_varint(raw_data);
-            MCVarInt *single_id_reencoded = varint_encode(single_id);
-            buffer_write(chunk_sec_data, single_id_reencoded->bytes, single_id_reencoded->size);
-        } else if (bits_per_entry < 8) {
-            int32_t no_of_ids = buffer_read_varint(raw_data);
-            MCVarInt *no_of_ids_reencoded = varint_encode(no_of_ids);
-            buffer_write(chunk_sec_data, no_of_ids_reencoded->bytes, no_of_ids_reencoded->size);
-            for (int j = 0; j < no_of_ids; j++) {
-                int32_t id = buffer_read_varint(raw_data);
-                MCVarInt *id_reencoded = varint_encode(id);
-                buffer_write(chunk_sec_data, id_reencoded->bytes, id_reencoded->size);
-            }
-        }
-        int32_t data_array_len = buffer_read_varint(raw_data);
-        MCVarInt *data_array_len_reencoded = varint_encode(data_array_len);
-        buffer_write(chunk_sec_data, data_array_len_reencoded->bytes, data_array_len_reencoded->size);
-
-        buffer_move(raw_data, data_array_len * sizeof(uint64_t), chunk_sec_data);
-
-        block_states[i] = chunk_sec_data;
+        PalettedContainer *container = palettet_container_new(raw_data);
+        block_states[i] = container;
     }
     buffer_free(raw_data);
-
     return data;
+}
+
+ChunkData *get_chunk(int32_t x, int32_t z, WorldState *state) {
+    ChunkData *current_chunk = state->chunks;
+    while(current_chunk != NULL) {
+        if (current_chunk->x == x && current_chunk->z == z) {
+            return current_chunk;
+        }
+    }
+    return NULL;
 }
 
 void add_chunk(ChunkDataPacket *chunk, WorldState *state) {
@@ -103,7 +127,7 @@ void add_chunk(ChunkDataPacket *chunk, WorldState *state) {
     ChunkData *current_chunk = state->chunks;
     ChunkData *prev_chunk;
     if (current_chunk == NULL) {
-        current_chunk->next = new_chunk;
+        state->chunks = new_chunk;
         return;
     }
     if (current_chunk->x == chunk->chunk_x && current_chunk->z == chunk->chunk_x) {
@@ -146,7 +170,21 @@ void remove_chunk(UnloadChunkPacket *packet, WorldState *state) {
     }
 }
 
+BlockState *get_block_at(Position *position, WorldState *state) {
+    int32_t chunk_x = (int32_t) (position->x / 16);
+    int32_t chunk_z = (int32_t) (position->z / 16);
+    int8_t chunk_section = (int8_t) (position->y / 16);
 
+    ChunkData *chunk = get_chunk(chunk_x, chunk_z, state);
+    PalettedContainer *section = chunk->block_states[chunk_section];
+
+    int8_t y_layer = (int8_t) ((int) position->y % 16);
+    int8_t z_row = (int8_t) ((int) position->z % 16);
+
+    int32_t block_bit_position = (int32_t) (section->bits_per_entry * (256 * y_layer + 16 * z_row + position->x));
+
+    return NULL;
+}
 
 ChunkData *handle_chunk_data(NetworkBuffer *chunk_data) {
     uint8_t bits_per_entry = buffer_read(uint8_t, chunk_data);
