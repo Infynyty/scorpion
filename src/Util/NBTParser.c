@@ -77,7 +77,7 @@ void handle_int_array(NetworkBuffer *buffer) {
 }
 
 void handle_long_array(NetworkBuffer *buffer) {
-	int32_t length = be32toh(buffer_read(int32_t, buffer));
+	int32_t length = ntohl(buffer_read(int32_t, buffer));
 	for (int i = 0; i < length; ++i) {
 		handle_long(buffer);
 	}

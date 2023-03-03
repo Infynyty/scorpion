@@ -138,12 +138,14 @@ ChunkData *chunk_data_new(ChunkDataPacket *packet) {
     data->x = packet->chunk_x;
     data->z = packet->chunk_z;
     PalettedContainer **block_states = malloc(sizeof(PalettedContainer) * SECTIONS_IN_CHUNK_COLUMN);
+    PalettedContainer **biome_states = malloc(sizeof(PalettedContainer) * SECTIONS_IN_CHUNK_COLUMN);
     NetworkBuffer *raw_data = buffer_clone(packet->data);
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
-        uint16_t non_air_blocks = be16toh(buffer_read(uint16_t, raw_data));
+        uint16_t non_air_blocks = ntohs(buffer_read(uint16_t, raw_data));
         PalettedContainer *container = block_palettet_container_new(raw_data);
         block_states[i] = container;
-        biomes_palettet_container_new(raw_data);
+        PalettedContainer *biomes = biomes_palettet_container_new(raw_data);
+        biome_states[i] = biomes;
     }
     data->block_states = block_states;
     data->next = NULL;
@@ -157,6 +159,7 @@ ChunkData *get_chunk(int32_t x, int32_t z, WorldState *state) {
         if (current_chunk->x == x && current_chunk->z == z) {
             return current_chunk;
         }
+        current_chunk = current_chunk->next;
     }
     return NULL;
 }
@@ -169,7 +172,7 @@ void add_chunk(ChunkDataPacket *chunk, WorldState *state) {
         state->chunks = new_chunk;
         return;
     }
-    if (current_chunk->x == chunk->chunk_x && current_chunk->z == chunk->chunk_x) {
+    if (current_chunk->x == chunk->chunk_x && current_chunk->z == chunk->chunk_z) {
         state->chunks = new_chunk;
         new_chunk->next = current_chunk->next;
         chunk_data_free(current_chunk);
@@ -177,7 +180,7 @@ void add_chunk(ChunkDataPacket *chunk, WorldState *state) {
     prev_chunk = current_chunk;
     current_chunk = current_chunk->next;
     while (current_chunk != NULL) {
-        if (current_chunk->x == chunk->chunk_x && current_chunk->z == chunk->chunk_x) {
+        if (current_chunk->x == chunk->chunk_x && current_chunk->z == chunk->chunk_z) {
             prev_chunk->next = new_chunk;
             new_chunk->next = current_chunk->next;
             chunk_data_free(current_chunk);
@@ -186,7 +189,7 @@ void add_chunk(ChunkDataPacket *chunk, WorldState *state) {
         prev_chunk = current_chunk;
         current_chunk = current_chunk->next;
     }
-    prev_chunk->next = current_chunk;
+    prev_chunk->next = new_chunk;
 }
 
 void remove_chunk(UnloadChunkPacket *packet, WorldState *state) {
@@ -212,10 +215,15 @@ void remove_chunk(UnloadChunkPacket *packet, WorldState *state) {
 BlockState *get_block_at(Position *position, WorldState *state) {
     int32_t chunk_x = (int32_t) (position->x / 16);
     int32_t chunk_z = (int32_t) (position->z / 16);
-    int8_t chunk_section = (int8_t) (position->y / 16);
+    int8_t chunk_section = (int8_t) ((position->y / 16) + 4);
 
     ChunkData *chunk = get_chunk(chunk_x, chunk_z, state);
+    if (chunk == NULL) return NULL;
     PalettedContainer *section = chunk->block_states[chunk_section];
+
+    if (section->palette_type == SINGLE_VALUE) {
+        return state->global_palette[section->palette[0]];
+    }
 
     int8_t y_layer = (int8_t) ((int) position->y % 16);
     int8_t z_row = (int8_t) ((int) position->z % 16);
