@@ -66,6 +66,8 @@ void world_state_free(WorldState *state) {
 
 PalettedContainer *block_palettet_container_new(NetworkBuffer *raw_data) {
     PalettedContainer *container = malloc(sizeof(PalettedContainer));
+    container->data = NULL;
+    container->palette = NULL;
     uint8_t bits_per_entry = buffer_read(uint8_t, raw_data);
 
     if (bits_per_entry == 0) {
@@ -102,6 +104,8 @@ PalettedContainer *block_palettet_container_new(NetworkBuffer *raw_data) {
 
 PalettedContainer *biomes_palettet_container_new(NetworkBuffer *raw_data) {
     PalettedContainer *container = malloc(sizeof(PalettedContainer));
+    container->data = NULL;
+    container->palette = NULL;
     uint8_t bits_per_entry = buffer_read(uint8_t, raw_data);
 
     if (bits_per_entry == 0) {
@@ -141,13 +145,14 @@ ChunkData *chunk_data_new(ChunkDataPacket *packet) {
     PalettedContainer **biome_states = malloc(sizeof(PalettedContainer) * SECTIONS_IN_CHUNK_COLUMN);
     NetworkBuffer *raw_data = buffer_clone(packet->data);
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
-        uint16_t non_air_blocks = ntohs(buffer_read(uint16_t, raw_data));
+        uint16_t non_air_blocks = be16toh(buffer_read(uint16_t, raw_data));
         PalettedContainer *container = block_palettet_container_new(raw_data);
         block_states[i] = container;
         PalettedContainer *biomes = biomes_palettet_container_new(raw_data);
         biome_states[i] = biomes;
     }
     data->block_states = block_states;
+    data->biomes = biome_states;
     data->next = NULL;
     buffer_free(raw_data);
     return data;
@@ -213,8 +218,8 @@ void remove_chunk(UnloadChunkPacket *packet, WorldState *state) {
 }
 
 BlockState *get_block_at(Position *position, WorldState *state) {
-    int32_t chunk_x = (int32_t) (position->x / 16);
-    int32_t chunk_z = (int32_t) (position->z / 16);
+    int32_t chunk_x = (int32_t) floor(position->x / 16.0);
+    int32_t chunk_z = (int32_t) floor(position->z / 16.0);
     int8_t chunk_section = (int8_t) ((position->y / 16) + 4);
 
     ChunkData *chunk = get_chunk(chunk_x, chunk_z, state);
@@ -225,19 +230,26 @@ BlockState *get_block_at(Position *position, WorldState *state) {
         return state->global_palette[section->palette[0]];
     }
 
-    int8_t y_layer = (int8_t) ((int) position->y % 16);
-    int8_t z_row = (int8_t) ((int) position->z % 16);
+    int8_t y_layer = ((int) position->y % 16);
+    y_layer = y_layer < 0 ? y_layer + 16 : y_layer;
+    int8_t z_row = ((int) position->z % 16);
+    z_row = z_row < 0 ? z_row + 16 : z_row;
+    int8_t x_pos = ((int) position->x % 16);
+    x_pos = x_pos < 0 ? x_pos + 16 : x_pos;
 
-    int32_t block_bit_position = (int32_t) (section->bits_per_entry * (256 * y_layer + 16 * z_row + position->x));
-    int16_t block = *(section->data->bytes + (block_bit_position / 8));
-    int8_t offset_from_MSB = (int8_t) ((int) block_bit_position % 8);
-    int8_t offset_from_LSB = (int8_t) ((sizeof(block) * 8) - section->bits_per_entry);
+    uint32_t block_index = 256 * y_layer + 16 * z_row + x_pos;
+    uint32_t blocks_per_long = (sizeof(uint64_t) * 8) / section->bits_per_entry;
+    uint32_t long_index = block_index / blocks_per_long;
+    uint32_t block_index_in_long = block_index - (long_index * blocks_per_long);
+    uint32_t block_bit_position = long_index * sizeof(uint64_t) * 8 + block_index_in_long * section->bits_per_entry;
+    uint64_t block = *((uint64_t *) (section->data->bytes + (long_index * sizeof(uint64_t))));
+    block = be64toh(block);
 
-    block <<= offset_from_MSB;
-    block >>= offset_from_LSB;
+    int8_t offset_from_LSB = (int8_t) ((sizeof(block) * 8) - (section->bits_per_entry + block_bit_position % 64));
+    int8_t offset_from_MSB = (int8_t) ((sizeof(block) * 8) - section->bits_per_entry);
+
+    block <<= offset_from_LSB;
+    block >>= offset_from_MSB;
 
     return state->global_palette[section->palette[block]];
 }
-
-
-

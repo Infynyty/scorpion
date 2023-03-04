@@ -13,6 +13,7 @@ NetworkBuffer *buffer_new() {
 }
 
 void buffer_free(NetworkBuffer *buffer) {
+    if (buffer == NULL) return;
 	free(buffer->bytes);
 	free(buffer);
 	buffer = NULL;

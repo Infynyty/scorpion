@@ -99,7 +99,6 @@ void handle_remove_chunk(void *packet, PlayState *state) {
 
 void handle_keep_alive(void *packet, PlayState *state) {
     cmc_log(INFO, "Received keep alive packet.");
-    BlockState *block = get_block_at(position_new(-8, -30, 1, 0, 0), state->worldState);
     KeepAliveClientboundPacket *keep_alive = (KeepAliveClientboundPacket *) packet;
     KeepAliveServerboundPacket response = {
             ._header = keep_alive_serverbound_new(),

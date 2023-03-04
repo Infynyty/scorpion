@@ -164,7 +164,8 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     int32_t num;
 #ifdef __APPLE__
                     num = htonl(*((u_int32_t *)current_byte));
-#elifdef __linux__
+#endif
+#ifdef linux
                     num = htobe32(*((u_int32_t *)current_byte));
 #endif
                     buffer_write(buffer, &num, get_types_size(m_type));
@@ -174,7 +175,8 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     int64_t num;
 #ifdef __APPLE__
                     num = htonll(*((u_int64_t *)current_byte));
-#elifdef __linux__
+#endif
+#if linux
                     num = htobe64(*((u_int64_t *)current_byte));
 #endif
                     buffer_write(buffer, &num, get_types_size(m_type));
@@ -192,7 +194,8 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     memmove(&num, current_byte, sizeof(double ));
 #ifdef __APPLE__
                     num = htonll(num);
-#elifdef __linux__
+#endif
+#ifdef linux
                     num = htobe64(num);
 #endif
                     buffer_write(buffer, &num, sizeof(double ));
@@ -341,7 +344,8 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 uint64_t uint64 = buffer_read(uint64_t, generic_packet);
 #ifdef __APPLE__
                 uint64 = ntohll(uint64);
-#elifdef __linux__
+#endif
+#ifdef linux
                 uint64 = be64toh(uint64);
 #endif
                 variable_pointer = &uint64;
