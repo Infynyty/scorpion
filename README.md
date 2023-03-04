@@ -34,6 +34,7 @@ Current features include:
 
 - Pathfinding using A*
 - Automating tasks like mining
+- Multithreading for receiving packets and handling chunk data
 
 ## Current issues
 
