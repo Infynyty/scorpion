@@ -9,6 +9,7 @@
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 /** Utility **/
 
@@ -495,7 +496,7 @@ int32_t receive_varint() {
     return result;
 }
 
-GenericPacket *packet_receive() {
+GenericPacket *packet_receive_single() {
     GenericPacket *packet = malloc(sizeof(GenericPacket));
     if (!compression_enabled) {
         uint32_t length = receive_varint();
@@ -544,6 +545,23 @@ GenericPacket *packet_receive() {
         }
     }
     return packet;
+}
+
+void *packet_receive(void *list_arg) {
+    GenericPacketList *list = list_arg;
+    while (true) {
+        GenericPacket *packet = packet_receive_single();
+        pthread_mutex_lock(list->mutex);
+        if (list->first == NULL) {
+            list->first = packet;
+            list->last = packet;
+        } else {
+            list->last->next = packet;
+            list->last = packet;
+        }
+        pthread_cond_broadcast(list->condition);
+        pthread_mutex_unlock(list->mutex);
+    }
 }
 
 void packet_generate_header(

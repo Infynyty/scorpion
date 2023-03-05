@@ -39,7 +39,13 @@ typedef enum Packets {
 	SET_PLAYER_ROT_PKT
 } Packets;
 
-void handle_packets(PlayState *state);
+typedef struct PacketHandleWrapper {
+    PlayState *state;
+    GenericPacketList *list;
+    pthread_t *receive_thread;
+} PacketHandleWrapper;
+
+void * handle_packets(void *wrapper);
 
 int register_handler(void (*handle)(void *packet, PlayState *state), Packets packet_type);
 

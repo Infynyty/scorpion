@@ -127,7 +127,7 @@ void get_status() {
 	register_handler(&print_status_response, STATUS_RESPONSE_PKT);
 
 	ClientState *clientState = client_state_new();
-    handle_packets(clientState);
+
 
 }
 
@@ -199,7 +199,25 @@ int main() {
     handle_login(play_state->clientState);
     cmc_log(DEBUG, "Sent login packets.");
     cmc_log(INFO, "Ready to receive packets.");
-    handle_packets(play_state);
+
+    pthread_t thread_receive;
+    pthread_t thread_handle;
+
+    pthread_cond_t condition;
+    pthread_cond_init(&condition, NULL);
+
+    pthread_mutex_t mutex;
+    pthread_mutex_init(&mutex, NULL);
+    GenericPacketList list = {.first = NULL, .last = NULL, .mutex = &mutex, .condition = &condition};
+    PacketHandleWrapper wrapper = {.state = play_state, .list = &list, .receive_thread = &thread_receive};
+
+    pthread_create(&thread_handle, NULL, handle_packets, &wrapper);
+
+    pthread_join(thread_handle, NULL);
+    cmc_log(INFO, "Joined thread");
+    pthread_cancel(thread_receive);
+
+    pthread_cond_destroy(&condition);
 
     cmc_log(INFO, "Disconnecting...");
 	deregister_all_handlers();

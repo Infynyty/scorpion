@@ -11,6 +11,7 @@
 #include "Encryption.h"
 #include "Authentication.h"
 #include "PlayState.h"
+#include <pthread.h>
 
 
 // Connection status: STATUS
@@ -117,16 +118,37 @@ void packet_event(Packets packet_type, PacketHeader **packet, PlayState *state) 
 	packet_free(packet);
 }
 
-static ServerState *serverState;
+GenericPacket *get_packet(ConnectionState state, PacketHandleWrapper *wrapper) {
+    if (state == PLAY) {
+        pthread_mutex_lock(wrapper->list->mutex);
+        while (wrapper->list->first == NULL) {
+            pthread_cond_wait(wrapper->list->condition, wrapper->list->mutex);
+        }
+        GenericPacketList *list = wrapper->list;
+        GenericPacket *generic_packet = list->first;
+        if (list->first == list->last) {
+            list->first = NULL;
+            list->last = NULL;
+        } else {
+            list->first = list->first->next;
+        }
+        pthread_mutex_unlock(list->mutex);
+        return generic_packet;
+    } else {
+        return packet_receive_single();
+    }
+}
 
-
-//TODO: abstract method for packet receive using packet fields?
-void handle_packets(PlayState *state) {
-	serverState = serverstate_new();
+void *handle_packets(void *wrapper_arg) {
 	ConnectionState connectionState = LOGIN;
+    PacketHandleWrapper *wrapper = wrapper_arg;
+    GenericPacketList *list = wrapper->list;
+    PlayState *state = wrapper->state;
 
 	while (true) {
-		GenericPacket *generic_packet = packet_receive();
+
+        GenericPacket *generic_packet = get_packet(connectionState, wrapper);
+        if (generic_packet == NULL) continue;
 
 		if (generic_packet->uncompressed_length < 0) {
             generic_packet_free(generic_packet);
@@ -160,15 +182,15 @@ void handle_packets(PlayState *state) {
 						DisconnectLoginPacket packet = {._header = disconnect_login_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
 						packet_event(LOGIN_DISCONNECT_PKT, &packet._header, state);
-                        return;
+                        return NULL;
 					}
 					case ENCRYPTION_REQUEST_ID: {
 						cmc_log(INFO, "Received encryption request.");
 						EncryptionRequestPacket packet = {._header = encryption_request_packet_new()};
 						packet_decode(&packet._header, generic_packet->data);
 
-						serverState->public_key = packet.public_key;
-						serverState->verify_token = packet.verify_token;
+						state->serverState->public_key = packet.public_key;
+						state->serverState->verify_token = packet.verify_token;
 
 						NetworkBuffer *secret = buffer_new();
                         EncryptionResponsePacket response = {._header = encryption_response_packet_new()};
@@ -192,6 +214,9 @@ void handle_packets(PlayState *state) {
 						cmc_log(DEBUG, "Received Login Success Packet.");
 						connectionState = PLAY;
 						cmc_log(DEBUG, "Switched connection state to PLAY.");
+
+                        cmc_log(DEBUG, "Enabling multi-threaded packet receiving.");
+                        pthread_create(wrapper->receive_thread, NULL, packet_receive, list);
 
 						packet_event(LOGIN_SUCCESS_PKT, &packet._header, state);
 						break;
@@ -218,7 +243,7 @@ void handle_packets(PlayState *state) {
                         DisconnectPlayPacket packet = {._header = disconnect_play_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
                         packet_event(DISCONNECT_PLAY_PKT, &packet._header, state);
-						return;
+						return NULL;
 					}
 					case LOGIN_PLAY_ID: {
 						cmc_log(INFO, "Received Login Play Packet.");
@@ -315,10 +340,9 @@ void handle_packets(PlayState *state) {
 
 			default:
 				cmc_log(ERR, "Invalid connection state (state: %d)!", connectionState);
-				return;
+				return NULL;
 		}
         generic_packet_free(generic_packet);
 	}
-	serverstate_free(serverState);
 }
 

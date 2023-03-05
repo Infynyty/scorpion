@@ -10,6 +10,7 @@
 #include "MCVarInt.h"
 #include "NetworkBuffer.h"
 #include "ConnectionState.h"
+#include <pthread.h>
 
 typedef enum PacketField {
 	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_INT32, PKT_FLOAT,
@@ -25,7 +26,15 @@ typedef struct GenericPacket {
 	uint8_t compressed_packet_id;
 	uint8_t packet_id;
 	NetworkBuffer *data;
+    struct GenericPacket* next;
 } GenericPacket;
+
+typedef struct GenericPacketList {
+    GenericPacket *first;
+    GenericPacket *last;
+    pthread_mutex_t *mutex;
+    pthread_cond_t *condition;
+} GenericPacketList;
 
 void generic_packet_free(GenericPacket *packet);
 
@@ -48,7 +57,9 @@ typedef struct {
  */
 void packet_send(PacketHeader **header);
 
-GenericPacket *packet_receive();
+GenericPacket *packet_receive_single();
+
+void * packet_receive(void *list);
 
 void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet);
 
