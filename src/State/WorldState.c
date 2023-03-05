@@ -51,9 +51,13 @@ void chunk_data_free(ChunkData *data) {
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
         free(data->block_states[i]->palette);
         buffer_free(data->block_states[i]->data);
+        free(data->block_states[i]);
         free(data->biomes[i]->palette);
         buffer_free(data->biomes[i]->data);
+        data->biomes[i];
     }
+    free(data->block_states);
+    free(data->biomes);
 }
 
 WorldState *world_state_new() {
@@ -61,6 +65,16 @@ WorldState *world_state_new() {
 }
 
 void world_state_free(WorldState *state) {
+    ChunkData *chunks = state->chunks;
+    while(chunks != NULL) {
+        ChunkData *temp = chunks;
+        chunks = chunks->next;
+        chunk_data_free(temp);
+    }
+    for (int i = 0; i < NO_OF_BLOCK_STATES; i++) {
+        free(state->global_palette[i]->name);
+        free(state->global_palette[i]);
+    }
     free(state);
 }
 
@@ -80,7 +94,7 @@ PalettedContainer *block_palettet_container_new(NetworkBuffer *raw_data) {
         container->bits_per_entry = bits_per_entry;
         container->palette_type = INDIRECT;
     } else {
-        container->bits_per_entry = ceil(log2(BLOCK_STATES));
+        container->bits_per_entry = ceil(log2(NO_OF_BLOCK_STATES));
         container->palette_type = DIRECT;
     }
 

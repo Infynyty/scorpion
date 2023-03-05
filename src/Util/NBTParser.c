@@ -67,6 +67,7 @@ void handle_string(NetworkBuffer *buffer) {
     buffer_move(buffer, sizeof(uint16_t), string_length);
     buffer_swap_endianness(string_length);
     buffer_remove(buffer, (uint16_t) *string_length->bytes);
+    buffer_free(string_length);
 }
 
 void handle_int_array(NetworkBuffer *buffer) {
@@ -133,6 +134,7 @@ void handle_list(NetworkBuffer *buffer) {
 				break;
 		}
 	}
+    buffer_free(length_buf);
 }
 
 void handle_compound(NetworkBuffer *buffer) {

@@ -260,6 +260,7 @@ NetworkBuffer *packet_compress(NetworkBuffer *packet) {
         buffer_write(compressed, packet_length->bytes, packet_length->size);
         buffer_write(compressed, &data_length, sizeof(uint8_t));
         buffer_write(compressed, packet->bytes, packet->size);
+        free(packet_length);
     }
     buffer_free(packet);
     return compressed;
@@ -274,6 +275,7 @@ NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
         exit(EXIT_FAILURE);
     }
     buffer_write(encrypted, temp, out_length);
+    buffer_free(packet);
     return encrypted;
 }
 
@@ -287,12 +289,16 @@ void packet_send(PacketHeader **header) {
         buffer_write(length_prefixed, packet_length->bytes, packet_length->size);
         buffer_write(length_prefixed, packet->bytes, packet->size);
         buffer_free(packet);
+        free(packet_length);
+        NetworkBuffer *temp = packet;
         packet = length_prefixed;
+        buffer_free(temp);
     }
     if (encryption_enabled) {
         packet = packet_encrypt(packet);
     }
     send_wrapper(get_socket(), packet->bytes, packet->size);
+    buffer_free(packet);
 }
 
 /** Receive **/
@@ -505,7 +511,10 @@ GenericPacket *packet_receive_single() {
         packet->is_compressed = false;
         packet->uncompressed_length = length;
         packet->packet_id = packet_id;
-        packet->data = receive_bytes(length - varint_encode(packet_id)->size);
+
+        MCVarInt *temp = varint_encode(packet_id);
+        packet->data = receive_bytes(length - temp->size);
+        free(temp);
     } else {
         int32_t compressed_length = receive_varint();
         if (compressed_length == 0) {
@@ -513,7 +522,9 @@ GenericPacket *packet_receive_single() {
             return packet;
         }
         int32_t uncompressed_length = receive_varint();
-        NetworkBuffer *compressed_data = receive_bytes(compressed_length - varint_encode(uncompressed_length)->size);
+        MCVarInt *temp = varint_encode(uncompressed_length);
+        NetworkBuffer *compressed_data = receive_bytes(compressed_length - temp->size);
+        free(temp);
 
         if (uncompressed_length != 0) {
             char uncompressed_data_temp[uncompressed_length];
@@ -534,6 +545,7 @@ GenericPacket *packet_receive_single() {
             packet->uncompressed_length = uncompressed_length - 1;
             packet->packet_id = packet_id;
             packet->data = uncompressed_data;
+            buffer_free(compressed_data);
         } else {
             uint32_t packet_id = buffer_read_varint(compressed_data);
 

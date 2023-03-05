@@ -61,14 +61,13 @@ void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 	}
 	//Resize array
 	memmove(buffer->bytes, buffer->bytes + length, size_after_remove);
-	char *temp = realloc(buffer->bytes, size_after_remove * sizeof(char));
+	char *temp = realloc(buffer->bytes, size_after_remove);
 	if (temp == NULL && size_after_remove > 0) {
 		fprintf(stderr, "Reallocation failed!");
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
-	} else {
-		buffer->bytes = (uint8_t *) temp;
 	}
+    buffer->bytes = (uint8_t *) temp;
 	buffer->size = size_after_remove;
 }
 

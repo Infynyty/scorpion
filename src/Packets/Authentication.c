@@ -28,6 +28,7 @@ void auth_token_get(AuthenticationDetails *details) {
         fread(token, sizeof(char), length, file);
         buffer_write(details->ms_access_token, token, length);
         fclose(file);
+        free(token);
     }
 }
 
@@ -88,7 +89,12 @@ void poll_xbl_access(AuthenticationDetails *details) {
         cmc_log(DEBUG, "Received the following response for the XBL token request: %s", json_object_get_string(json_response));
         json_object *json_token = json_object_object_get(json_response, "Token");
         buffer_write(details->xbl_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
+        buffer_free(response);
+        curl_slist_free_all(headers);
+        json_object_put(json_response);
     }
+    json_object_put(request);
+    curl_easy_cleanup(curl);
 }
 
 void poll_xbl_user_authentication(char *device_code, AuthenticationDetails *details) {
@@ -242,9 +248,12 @@ void authenticate_xsts(AuthenticationDetails *details) {
         json_object *hash_gotten = json_object_object_get(hash, "uhs");
         buffer_write(details->player_hash, json_object_get_string(hash_gotten), json_object_get_string_len(hash_gotten));
 
+        curl_slist_free_all(headers);
         json_object_put(request);
         json_object_put(json_response);
+        buffer_free(response);
     }
+    curl_easy_cleanup(curl);
 }
 
 void authenticate_minecraft(AuthenticationDetails *details) {
@@ -297,9 +306,14 @@ void authenticate_minecraft(AuthenticationDetails *details) {
                      json_object_get_string_len(json_token)
         );
 
+        curl_slist_free_all(headers);
         json_object_put(request);
         json_object_put(json_response);
+        json_tokener_free(tokener);
+        buffer_free(response);
+        buffer_free(identity);
     }
+    curl_easy_cleanup(curl);
 }
 
 void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencrypted_secret, ClientState *client) {
@@ -312,6 +326,7 @@ void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencry
     unsigned int length;
     EVP_DigestFinal(ctx, temp, &length);
     BIGNUM *num = BN_bin2bn(temp, length, NULL);
+    EVP_MD_CTX_free(ctx);
 
     char *result = malloc(128);
     bool negative = false;
@@ -378,9 +393,14 @@ void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencry
 
         CURLcode res = curl_easy_perform(curl);
 
+        curl_slist_free_all(headers);
         json_object *json_response = json_tokener_parse((char *) response->bytes);
         cmc_log(DEBUG, "Received server auth response: %s", json_object_get_string(json_response));
+        json_object_put(request);
+        buffer_free(response);
     }
+    free(result);
+    curl_easy_cleanup(curl);
 }
 
 void get_player_profile(AuthenticationDetails *details, ClientState *state) {
@@ -416,8 +436,12 @@ void get_player_profile(AuthenticationDetails *details, ClientState *state) {
         NetworkBuffer *player_uuid = string_buffer_new(json_object_get_string(uuid));
         state->profile_info->uuid = player_uuid;
         state->profile_info->name = player_name;
+        buffer_free(response);
+        curl_slist_free_all(headers);
+        free(auth_header);
         json_object_put(json_response);
     }
+    curl_easy_cleanup(curl);
 }
 
 void authenticate(ClientState *state) {

@@ -10,7 +10,7 @@
 #include "Position.h"
 #include "Packets.h"
 
-#define BLOCK_STATES 23232
+#define NO_OF_BLOCK_STATES 23232
 
 typedef enum PaletteType {
     SINGLE_VALUE, INDIRECT, DIRECT
@@ -42,7 +42,7 @@ typedef struct WorldState {
     long hashed_seed;
     uint16_t no_of_loaded_chunks;
     ChunkData *chunks;
-    BlockState* global_palette[BLOCK_STATES];
+    BlockState* global_palette[NO_OF_BLOCK_STATES];
 } WorldState;
 
 WorldState *world_state_new();

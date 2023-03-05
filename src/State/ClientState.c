@@ -24,6 +24,12 @@ void authentication_details_free(AuthenticationDetails *details) {
     free(details);
 }
 
+void profile_info_free(ProfileInformation *info) {
+    buffer_free(info->name);
+    buffer_free(info->uuid);
+    free(info);
+}
+
 
 ClientState *client_state_new() {
 	ClientState *state = malloc(sizeof(ClientState));
@@ -34,6 +40,8 @@ ClientState *client_state_new() {
 }
 
 void client_state_free(ClientState *clientState) {
+    authentication_details_free(clientState->auth_details);
+    profile_info_free(clientState->profile_info);
     free(clientState->profile_info);
     free(clientState->position);
     free(clientState->last_death_position);

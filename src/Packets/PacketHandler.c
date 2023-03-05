@@ -201,6 +201,7 @@ void *handle_packets(void *wrapper_arg) {
                         );
                         authenticate_server(&packet, secret, state->clientState);
 						packet_send(&response._header);
+                        packet_free(&response._header);
 						cmc_log(INFO, "Sent encryption response.");
 						init_encryption(secret);
 						buffer_free(secret);

@@ -43,6 +43,7 @@ void generate_secret(NetworkBuffer *dest) {
 	unsigned char *temp = malloc(AES_BLOCK_SIZE);
 	RAND_priv_bytes(temp, AES_BLOCK_SIZE);
     buffer_write(dest, temp, AES_BLOCK_SIZE);
+    free(temp);
 }
 
 void generate_hash(NetworkBuffer *secret, NetworkBuffer *public_key) {
@@ -67,6 +68,7 @@ void encryption_response_generate(
     buffer_write(shared_secret, secret->bytes, AES_BLOCK_SIZE);
 
     unsigned char *key_copy = malloc(public_key->size);
+    unsigned char *temp = key_copy;
     memmove(key_copy, public_key->bytes, public_key->size);
 
 
@@ -88,6 +90,7 @@ void encryption_response_generate(
     free(encrypted_secret);
     free(encrypted_nonce);
     RSA_free(rsa);
+    free(temp);
 
     packet->shared_secret = shared_secret;
     packet->verify_token = verify_token;

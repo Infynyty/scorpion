@@ -162,6 +162,8 @@ void handle_login(ClientState *client) {
     };
     packet_send(&start._header);
     packet_free(&start._header);
+    free(temp);
+    BN_free(bn);
 
     cmc_log(INFO, "Sent login data for player %s with UUID %.32s.",
             client->profile_info->name->bytes,
@@ -222,6 +224,10 @@ int main() {
     cmc_log(INFO, "Disconnecting...");
 	deregister_all_handlers();
     cmc_log(DEBUG, "Deregistered all handlers.");
+    GenericPacket *to_free = list.first;
+    while (to_free != list.last) {
+        generic_packet_free(to_free);
+    }
 	close(socket_wrapper->socket);
     play_state_free(play_state);
 	free(socket_wrapper);
