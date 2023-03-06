@@ -226,7 +226,9 @@ int main() {
     cmc_log(DEBUG, "Deregistered all handlers.");
     GenericPacket *to_free = list.first;
     while (to_free != list.last) {
+        GenericPacket *temp = to_free->next;
         generic_packet_free(to_free);
+        to_free = temp;
     }
 	close(socket_wrapper->socket);
     play_state_free(play_state);

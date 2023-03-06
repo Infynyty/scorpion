@@ -38,7 +38,7 @@ uint8_t get_types_size(PacketField type) {
 }
 
 void generic_packet_free(GenericPacket *packet) {
-    free(packet->data);
+    buffer_free(packet->data);
     free(packet);
 }
 
@@ -290,9 +290,7 @@ void packet_send(PacketHeader **header) {
         buffer_write(length_prefixed, packet->bytes, packet->size);
         buffer_free(packet);
         free(packet_length);
-        NetworkBuffer *temp = packet;
         packet = length_prefixed;
-        buffer_free(temp);
     }
     if (encryption_enabled) {
         packet = packet_encrypt(packet);
