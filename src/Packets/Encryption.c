@@ -84,6 +84,8 @@ void encryption_response_generate(
     NetworkBuffer *encrypted_nonce_buf = buffer_new();
     buffer_write(encrypted_nonce_buf, encrypted_nonce, bytes_encrypted);
 
+    buffer_free(shared_secret);
+
     shared_secret = encrypted_secret_buf;
     verify_token = encrypted_nonce_buf;
 
