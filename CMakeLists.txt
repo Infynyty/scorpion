@@ -44,7 +44,7 @@ add_executable(scorpion
         src/Util/SocketWrapper.h
         src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h)
 
-add_compile_definitions(ACTIVE_LOG_LEVEL=INFO)
+add_compile_definitions(ACTIVE_LOG_LEVEL=DEBUG)
 
 find_package(CURL REQUIRED)
 target_link_libraries(scorpion CURL::libcurl)
