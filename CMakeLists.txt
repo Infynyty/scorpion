@@ -42,7 +42,7 @@ add_executable(scorpion
         src/Util/NetworkBuffer.h
         src/Util/SocketWrapper.c
         src/Util/SocketWrapper.h
-        src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h)
+        src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h src/Pathfinding/AStar.c src/Pathfinding/AStar.h)
 
 add_compile_definitions(ACTIVE_LOG_LEVEL=INFO)
 

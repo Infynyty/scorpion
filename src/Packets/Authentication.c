@@ -11,8 +11,6 @@
 #include <openssl/evp.h>
 #include <ctype.h>
 
-#define MAX_TOKEN_LENGTH 2048
-
 size_t save_response(char *ptr, size_t size, size_t nmemb, void *userdata) {
     NetworkBuffer *buffer = userdata;
     buffer_write(buffer, ptr, size * nmemb);
@@ -22,9 +20,9 @@ size_t save_response(char *ptr, size_t size, size_t nmemb, void *userdata) {
 void auth_token_get(AuthenticationDetails *details) {
     FILE *file = fopen(".token", "rb");
     if (file) {
-        char *token = malloc(MAX_TOKEN_LENGTH);
         size_t length = 0;
         fread((char **) &length, sizeof(size_t), 1, file);
+        char *token = malloc(length);
         fread(token, sizeof(char), length, file);
         buffer_write(details->xbl_token, token, length);
         fclose(file);
@@ -180,7 +178,6 @@ void authenticate_xbl(AuthenticationDetails *details) {
 
         curl_easy_perform(curl);
 
-        cmc_log(INFO, "Response: %s", response->bytes);
         json_object *json_response = json_tokener_parse((char *) response->bytes);
         json_object *user_code = json_object_object_get(json_response, "user_code");
         json_object *device_code = json_object_object_get(json_response, "device_code");
@@ -457,7 +454,7 @@ void authenticate(ClientState *state) {
         authenticate_xbl(state->auth_details);
         poll_xbl_access(state->auth_details);
     } else {
-        cmc_log(INFO, "Using saved XBL token...");
+        cmc_log(DEBUG, "Using saved XBL token...");
     }
 
     authenticate_xsts(state->auth_details);
