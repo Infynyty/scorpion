@@ -5,6 +5,6 @@
 #include "Position.h"
 #include <stdint.h>
 
-Position* find_path(Position *start, Position *goal);
+Position** find_path(Position *start, Position *goal);
 
 #endif //SCORPION_ASTAR_H
