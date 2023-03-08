@@ -12,6 +12,7 @@
 #include "Authentication.h"
 #include "PlayState.h"
 #include <pthread.h>
+#include "AStar.h"
 
 
 // Connection status: STATUS
@@ -291,6 +292,9 @@ void *handle_packets(void *wrapper_arg) {
                         break;
                     }
                     case PLAYER_CHAT_MESSAGE_ID: {
+
+                        find_path(position_new(0, -61, 0, 0, 0), position_new(4, -61, 2, 0, 0), state->worldState);
+
                         PlayerChatMessagePacket packet = {._header = player_chat_message_header(
                                 &packet.has_message_signature,
                                 &packet.has_unsigned_content,

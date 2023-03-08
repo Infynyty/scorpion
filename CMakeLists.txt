@@ -10,6 +10,7 @@ include_directories(src/Util/ConnectionState)
 include_directories(src/Util/Logging)
 include_directories(src/Util/VarInt)
 include_directories(src/Util/VarLong)
+include_directories(src/Pathfinding)
 
 add_executable(scorpion
         src/Packets/PacketHandler.c

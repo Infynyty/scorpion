@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <stdint-gcc.h>
 #include "Logger.h"
 #include "Position.h"
+#include "WorldState.h"
 
 
 typedef struct BlockNode {
@@ -47,8 +49,11 @@ bool is_index_in_bounds(PriorityQueue *queue, uint32_t index) {
 }
 
 void sift_up(BlockNode **array, uint32_t index) {
-    while (array[index]->distance < array[get_parent_index(index)]->distance) {
-        swap_elems(array, index, get_parent_index(index));
+    uint32_t current_index = index;
+    while (current_index != 0) {
+        if (array[current_index]->distance > array[get_parent_index(current_index)]->distance) break;
+        swap_elems(array, current_index, get_parent_index(current_index));
+        current_index = get_parent_index(current_index);
     }
 }
 
@@ -109,6 +114,7 @@ typedef struct NodePosition {
 } NodePosition;
 
 typedef struct SearchArea {
+    uint16_t current_distance;
     Position *abs_pos_of_origin;
     uint16_t x_length;
     uint16_t y_length;
@@ -118,15 +124,34 @@ typedef struct SearchArea {
 NodePosition *index_to_rel_pos(SearchArea *area, uint16_t index_one) {
     uint16_t blocks_per_x = 1;
     uint16_t blocks_per_z = area->x_length;
-    uint16_t blocks_per_y = area->x_length * area->y_length;
+    uint16_t blocks_per_y = (area->x_length) * (area->z_length);
     uint16_t x_index = (index_one / blocks_per_x) % area->x_length;
-    uint16_t z_index = (index_one / blocks_per_z) % area->z_length;
-    uint16_t y_index = (index_one / blocks_per_y) % area->y_length;
+    uint16_t z_index;
+    uint16_t y_index;
+    if (blocks_per_z != 0 && area->z_length) {
+        z_index = (index_one / blocks_per_z) % area->z_length;
+    } else {
+        z_index = 0;
+    }
+    if (blocks_per_y != 0 && area->y_length) {
+        y_index = (index_one / blocks_per_y) % area->y_length;
+    } else {
+        y_index = 0;
+    }
+
     NodePosition *position = malloc(sizeof(NodePosition));
     position->x = x_index;
     position->y = y_index;
     position->z = z_index;
     return position;
+}
+
+Position *index_to_abs_pos(SearchArea *area, uint16_t index) {
+    NodePosition *rel_pos = index_to_rel_pos(area, index);
+    double x = rel_pos->x + area->abs_pos_of_origin->x;
+    double y = rel_pos->y + area->abs_pos_of_origin->y;
+    double z = rel_pos->z + area->abs_pos_of_origin->z;
+    return position_new(x, y, z, 0, 0);
 }
 
 uint32_t abs_pos_to_index(SearchArea *area, Position *pos) {
@@ -137,19 +162,20 @@ uint32_t abs_pos_to_index(SearchArea *area, Position *pos) {
 }
 
 uint32_t get_heuristic(NodePosition *pos_1, NodePosition *pos_2) {
-    return abs(pos_1->x - pos_2->x)+ abs(pos_1->y - pos_2->y) + abs(pos_1->z - pos_2->z);
+    return abs(pos_1->x - pos_2->x) + abs(pos_1->y - pos_2->y) + abs(pos_1->z - pos_2->z);
 }
 
 SearchArea *search_area_new(Position *pos_1, Position *pos_2) {
-    uint16_t x_delta = (uint16_t) fabs((pos_1->x - pos_2->x));
-    uint16_t y_delta = (uint16_t) fabs((pos_1->y - pos_2->y));
-    uint16_t z_delta = (uint16_t) fabs((pos_1->z - pos_2->z));
+    uint16_t x_delta = (uint16_t) fabs((pos_1->x - pos_2->x)) + 1;
+    uint16_t y_delta = (uint16_t) fabs((pos_1->y - pos_2->y)) + 1;
+    uint16_t z_delta = (uint16_t) fabs((pos_1->z - pos_2->z)) + 1;
 
     int16_t x_low = (int16_t) (pos_1->x < pos_2->x ? pos_1->x : pos_2->x);
     int16_t y_low = (int16_t) (pos_1->x < pos_2->y ? pos_1->y : pos_2->y);
     int16_t z_low = (int16_t) (pos_1->x < pos_2->z ? pos_1->z : pos_2->z);
 
     SearchArea *area = malloc(sizeof(SearchArea));
+    area->current_distance = 1;
     area->abs_pos_of_origin = position_new(x_low, y_low, z_low, 0, 0);
     area->x_length = x_delta;
     area->y_length = y_delta;
@@ -159,34 +185,96 @@ SearchArea *search_area_new(Position *pos_1, Position *pos_2) {
 }
 
 bool position_equals(BlockNode *pos1, BlockNode *pos2) {
-    return false;
+    return pos1->index == pos2->index;
 }
 
-void get_neighbours(BlockNode *node) {
-
+bool is_pos_in_area(Position *pos, SearchArea *area) {
+    return pos->x >= area->abs_pos_of_origin->x && pos->x <= area->abs_pos_of_origin->x + area->x_length
+        && pos->y >= area->abs_pos_of_origin->y && pos->y <= area->abs_pos_of_origin->y + area->y_length
+        && pos->z >= area->abs_pos_of_origin->z && pos->z <= area->abs_pos_of_origin->z + area->z_length;
 }
 
-Position** find_path(Position *start, Position *goal) {
+void get_neighbours(BlockNode *node, BlockNode **neighbours, SearchArea *area, WorldState *state) {
+    Position *abs_pos = index_to_abs_pos(area, node->index);
+    Position *abs_pos1 = position_new(abs_pos->x + 1, abs_pos->y, abs_pos->z, 0, 0);
+    Position *abs_pos2 = position_new(abs_pos->x - 1, abs_pos->y, abs_pos->z, 0, 0);
+    Position *abs_pos3 = position_new(abs_pos->x, abs_pos->y, abs_pos->z + 1, 0, 0);
+    Position *abs_pos4 = position_new(abs_pos->x, abs_pos->y, abs_pos->z - 1, 0, 0);
+    if (strcmp(get_block_at(abs_pos1, state)->name, "minecraft:air") == 0) {
+        neighbours[0] = NULL;
+    } else {
+        neighbours[0] = is_pos_in_area(abs_pos1, area) ? block_node_new(abs_pos_to_index(area, abs_pos1), area->current_distance) : NULL;
+    }
+    if (strcmp(get_block_at(abs_pos2, state)->name, "minecraft:air") == 0) {
+        neighbours[1] = NULL;
+    } else {
+        neighbours[1] = is_pos_in_area(abs_pos2, area) ? block_node_new(abs_pos_to_index(area, abs_pos2), area->current_distance) : NULL;
+    }
+    if (strcmp(get_block_at(abs_pos3, state)->name, "minecraft:air") == 0) {
+        neighbours[2] = NULL;
+    } else {
+        neighbours[2] = is_pos_in_area(abs_pos3, area) ? block_node_new(abs_pos_to_index(area, abs_pos3), area->current_distance) : NULL;
+    }
+    if (strcmp(get_block_at(abs_pos4, state)->name, "minecraft:air") == 0) {
+        neighbours[3] = NULL;
+    } else {
+        neighbours[3] = is_pos_in_area(abs_pos4, area) ? block_node_new(abs_pos_to_index(area, abs_pos4), area->current_distance) : NULL;
+    }
+}
+
+Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t start_index, SearchArea *area) {
+    uint32_t counter = 1;
+    uint32_t current = goal_index;
+    while (current != start_index) {
+        counter++;
+        current = parents[current];
+    }
+    Position **positions = malloc(sizeof(Position *) * counter);
+    current = goal_index;
+    for (int i = 0; i < counter; i++) {
+        positions[counter - 1 - i] = index_to_abs_pos(area, current);
+        current = parents[current];
+    }
+    return positions;
+}
+
+Position** find_path(Position *start, Position *goal, WorldState *state) {
     SearchArea *area = search_area_new(start, goal);
-    PriorityQueue *queue = priority_queue_new(area->x_length * area->y_length * area->z_length);
-    BlockNode *costs[area->x_length * area->y_length * area->z_length];
-    BlockNode *parents[area->x_length * area->y_length * area->z_length];
+    PriorityQueue *queue = priority_queue_new(100);
+    uint16_t *costs = calloc(sizeof(uint16_t), area->x_length * area->y_length * area->z_length);
+    uint32_t parents[100];
 
     BlockNode *start_node = block_node_new(abs_pos_to_index(area, start), 0);
     BlockNode *goal_node = block_node_new(abs_pos_to_index(area, goal), 0);
     insert_node(queue, start_node);
-    costs[start_node->index] = 0;
-    parents[start_node->index] = start_node;
+    costs[start_node->index] = 1;
+    parents[start_node->index] = start_node->index;
 
-    BlockNode *neighbours = malloc(sizeof(BlockNode) * 4);
+    BlockNode **neighbours = malloc(sizeof(BlockNode) * 4);
 
     while(queue->size != 0) {
         BlockNode *current = extract_min(queue);
+        area->current_distance++;
 
         if (position_equals(current, goal_node)) {
             break;
         }
-
-        for (int i = 0; i < )
+        get_neighbours(current, neighbours, area, state);
+        for (int i = 0; i < 4; i++) {
+            if (neighbours[i] != NULL) {
+                if (costs[neighbours[i]->index] == 0 || costs[neighbours[i]->index] > area->current_distance) {
+                    neighbours[i]->distance =
+                            area->current_distance
+                            + get_heuristic(
+                                    index_to_rel_pos(area, neighbours[i]->index),
+                                    index_to_rel_pos(area, goal_node->index)
+                                    );
+                    costs[neighbours[i]->index] = area->current_distance;
+                    parents[neighbours[i]->index] = current->index;
+                    insert_node(queue, neighbours[i]);
+                }
+            }
+        }
     }
+    Position **result = translate_parents(parents, goal_node->index, start_node->index, area);
 }

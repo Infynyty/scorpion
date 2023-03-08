@@ -159,7 +159,7 @@ ChunkData *chunk_data_new(ChunkDataPacket *packet) {
     PalettedContainer **biome_states = malloc(sizeof(PalettedContainer) * SECTIONS_IN_CHUNK_COLUMN);
     NetworkBuffer *raw_data = buffer_clone(packet->data);
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
-        uint16_t non_air_blocks = ntohs(buffer_read(uint16_t, raw_data));
+        uint16_t non_air_blocks = be16toh(buffer_read(uint16_t, raw_data));
         PalettedContainer *container = block_palettet_container_new(raw_data);
         block_states[i] = container;
         PalettedContainer *biomes = biomes_palettet_container_new(raw_data);
@@ -257,7 +257,7 @@ BlockState *get_block_at(Position *position, WorldState *state) {
     uint32_t block_index_in_long = block_index - (long_index * blocks_per_long);
     uint32_t block_bit_position = long_index * sizeof(uint64_t) * 8 + block_index_in_long * section->bits_per_entry;
     uint64_t block = *((uint64_t *) (section->data->bytes + (long_index * sizeof(uint64_t))));
-    block = ntohll(block);
+    block = be64toh(block);
 
     int8_t offset_from_LSB = (int8_t) ((sizeof(block) * 8) - (section->bits_per_entry + block_bit_position % 64));
     int8_t offset_from_MSB = (int8_t) ((sizeof(block) * 8) - section->bits_per_entry);
