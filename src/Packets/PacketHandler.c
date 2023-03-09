@@ -286,15 +286,14 @@ void *handle_packets(void *wrapper_arg) {
                         break;
                     }
                     case KEEP_ALIVE_CLIENTBOUND_ID: {
+                        find_path(position_new(0, -61, 0, 0, 0), position_new(4, -61, 2, 0, 0), state->worldState);
+
                         KeepAliveClientboundPacket packet = {._header = keep_alive_clientbound_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
                         packet_event(KEEP_ALIVE_CLIENTBOUND_PKT, &packet._header, state);
                         break;
                     }
                     case PLAYER_CHAT_MESSAGE_ID: {
-
-                        find_path(position_new(0, -61, 0, 0, 0), position_new(4, -61, 2, 0, 0), state->worldState);
-
                         PlayerChatMessagePacket packet = {._header = player_chat_message_header(
                                 &packet.has_message_signature,
                                 &packet.has_unsigned_content,

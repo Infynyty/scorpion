@@ -12,7 +12,14 @@ Position *position_new(double x, double y, double z, float yaw, float pitch) {
 	position->z = z;
 	position->yaw = yaw;
 	position->pitch = pitch;
+    position->dimension = NULL;
 	return position;
+}
+
+void position_free(Position *position) {
+    if (position == NULL) return;
+    free(position->dimension);
+    free(position);
 }
 
 void position_change_position_relative(Position *position, double x_delta, double y_delta, double z_delta) {

@@ -23,4 +23,6 @@ typedef struct Position {
 
 Position *position_new(double x, double y, double z, float yaw, float pitch);
 
+void position_free(Position *position);
+
 #endif //CMC_POSITION_H

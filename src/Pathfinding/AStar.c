@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
-#include <stdint-gcc.h>
 #include "Logger.h"
 #include "Position.h"
 #include "WorldState.h"
 
+#define SEARCH_AREA_SIZE 16
 
 typedef struct BlockNode {
     uint32_t index;
@@ -151,6 +151,7 @@ Position *index_to_abs_pos(SearchArea *area, uint16_t index) {
     double x = rel_pos->x + area->abs_pos_of_origin->x;
     double y = rel_pos->y + area->abs_pos_of_origin->y;
     double z = rel_pos->z + area->abs_pos_of_origin->z;
+    free(rel_pos);
     return position_new(x, y, z, 0, 0);
 }
 
@@ -166,13 +167,13 @@ uint32_t get_heuristic(NodePosition *pos_1, NodePosition *pos_2) {
 }
 
 SearchArea *search_area_new(Position *pos_1, Position *pos_2) {
-    uint16_t x_delta = (uint16_t) fabs((pos_1->x - pos_2->x)) + 1;
-    uint16_t y_delta = (uint16_t) fabs((pos_1->y - pos_2->y)) + 1;
-    uint16_t z_delta = (uint16_t) fabs((pos_1->z - pos_2->z)) + 1;
+    uint16_t x_delta = (uint16_t) fabs((pos_1->x - pos_2->x)) + 1 + 2 *SEARCH_AREA_SIZE;
+    uint16_t y_delta = (uint16_t) fabs((pos_1->y - pos_2->y)) + 1 + 2 *SEARCH_AREA_SIZE;
+    uint16_t z_delta = (uint16_t) fabs((pos_1->z - pos_2->z)) + 1 + 2 *SEARCH_AREA_SIZE;
 
-    int16_t x_low = (int16_t) (pos_1->x < pos_2->x ? pos_1->x : pos_2->x);
-    int16_t y_low = (int16_t) (pos_1->x < pos_2->y ? pos_1->y : pos_2->y);
-    int16_t z_low = (int16_t) (pos_1->x < pos_2->z ? pos_1->z : pos_2->z);
+    int16_t x_low = (int16_t) (pos_1->x < pos_2->x ? pos_1->x - SEARCH_AREA_SIZE : pos_2->x - SEARCH_AREA_SIZE);
+    int16_t y_low = (int16_t) (pos_1->x < pos_2->y ? pos_1->y - SEARCH_AREA_SIZE : pos_2->y - SEARCH_AREA_SIZE);
+    int16_t z_low = (int16_t) (pos_1->x < pos_2->z ? pos_1->z - SEARCH_AREA_SIZE : pos_2->z - SEARCH_AREA_SIZE);
 
     SearchArea *area = malloc(sizeof(SearchArea));
     area->current_distance = 1;
@@ -200,27 +201,33 @@ void get_neighbours(BlockNode *node, BlockNode **neighbours, SearchArea *area, W
     Position *abs_pos2 = position_new(abs_pos->x - 1, abs_pos->y, abs_pos->z, 0, 0);
     Position *abs_pos3 = position_new(abs_pos->x, abs_pos->y, abs_pos->z + 1, 0, 0);
     Position *abs_pos4 = position_new(abs_pos->x, abs_pos->y, abs_pos->z - 1, 0, 0);
-    if (strcmp(get_block_at(abs_pos1, state)->name, "minecraft:air") == 0) {
+    if (strcmp(get_block_at(abs_pos1, state)->name, "minecraft:air") != 0 && is_pos_in_area(abs_pos1, area)) {
+        neighbours[0] = block_node_new(abs_pos_to_index(area, abs_pos1), area->current_distance);
+    } else {
         neighbours[0] = NULL;
-    } else {
-        neighbours[0] = is_pos_in_area(abs_pos1, area) ? block_node_new(abs_pos_to_index(area, abs_pos1), area->current_distance) : NULL;
+        position_free(abs_pos1);
     }
-    if (strcmp(get_block_at(abs_pos2, state)->name, "minecraft:air") == 0) {
+    if (strcmp(get_block_at(abs_pos2, state)->name, "minecraft:air") != 0 && is_pos_in_area(abs_pos2, area)) {
+        neighbours[1] = block_node_new(abs_pos_to_index(area, abs_pos2), area->current_distance);
+    } else {
         neighbours[1] = NULL;
-    } else {
-        neighbours[1] = is_pos_in_area(abs_pos2, area) ? block_node_new(abs_pos_to_index(area, abs_pos2), area->current_distance) : NULL;
+        position_free(abs_pos2);
     }
-    if (strcmp(get_block_at(abs_pos3, state)->name, "minecraft:air") == 0) {
+    if (strcmp(get_block_at(abs_pos3, state)->name, "minecraft:air") != 0 && is_pos_in_area(abs_pos3, area)) {
+        neighbours[2] = block_node_new(abs_pos_to_index(area, abs_pos3), area->current_distance);
+    } else {
         neighbours[2] = NULL;
-    } else {
-        neighbours[2] = is_pos_in_area(abs_pos3, area) ? block_node_new(abs_pos_to_index(area, abs_pos3), area->current_distance) : NULL;
+        position_free(abs_pos3);
     }
-    if (strcmp(get_block_at(abs_pos4, state)->name, "minecraft:air") == 0) {
-        neighbours[3] = NULL;
+    if (strcmp(get_block_at(abs_pos4, state)->name, "minecraft:air") != 0 && is_pos_in_area(abs_pos4, area)) {
+        neighbours[3] = block_node_new(abs_pos_to_index(area, abs_pos4), area->current_distance);
     } else {
-        neighbours[3] = is_pos_in_area(abs_pos4, area) ? block_node_new(abs_pos_to_index(area, abs_pos4), area->current_distance) : NULL;
+        neighbours[3] = NULL;
+        position_free(abs_pos4);
     }
 }
+
+void add_neighbour();
 
 Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t start_index, SearchArea *area) {
     uint32_t counter = 1;
@@ -240,17 +247,25 @@ Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t st
 
 Position** find_path(Position *start, Position *goal, WorldState *state) {
     SearchArea *area = search_area_new(start, goal);
-    PriorityQueue *queue = priority_queue_new(100);
-    uint16_t *costs = calloc(sizeof(uint16_t), area->x_length * area->y_length * area->z_length);
-    uint32_t parents[100];
+    PriorityQueue *queue = priority_queue_new(1000);
+    uint16_t *costs = malloc(sizeof(uint16_t) * area->x_length * area->y_length * area->z_length);
+    for (int i = 0; i < area->x_length * area->y_length * area->z_length; i++) {
+        costs[i] = UINT16_MAX;
+    }
+    uint32_t parents[1000] = {0}; //TODO: make variable size
 
     BlockNode *start_node = block_node_new(abs_pos_to_index(area, start), 0);
     BlockNode *goal_node = block_node_new(abs_pos_to_index(area, goal), 0);
+    uint32_t start_index = start_node->index;
+    uint32_t goal_index = goal_node->index;
     insert_node(queue, start_node);
     costs[start_node->index] = 1;
     parents[start_node->index] = start_node->index;
 
     BlockNode **neighbours = malloc(sizeof(BlockNode) * 4);
+    for (int i = 0; i < 4; i++) {
+        neighbours[i] = NULL;
+    }
 
     while(queue->size != 0) {
         BlockNode *current = extract_min(queue);
@@ -275,6 +290,9 @@ Position** find_path(Position *start, Position *goal, WorldState *state) {
                 }
             }
         }
+        free(current);
     }
-    Position **result = translate_parents(parents, goal_node->index, start_node->index, area);
+    if (costs[goal_node->index] == UINT16_MAX) return NULL;
+    Position **result = translate_parents(parents, goal_index, start_index, area);
+    return result;
 }
