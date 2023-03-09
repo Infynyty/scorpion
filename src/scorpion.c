@@ -57,14 +57,15 @@ void handle_init_pos(void *packet, PlayState *state) {
 	packet_send(&confirmation._header);
 	packet_free(&confirmation._header);
 	cmc_log(INFO, "Confirmed teleportation.");
+    state->clientState->position = position_new(sync->x, sync->y, sync->z, sync->yaw, sync->pitch);
 
 	SetPlayerPosAndRotPacket ppr = {
             ._header = set_player_pos_and_rot_packet_new(),
-            sync->x + 0.2f,
+            sync->x,
             sync->y,
             sync->z,
             sync->yaw,
-            sync->pitch,
+            sync->pitch + 1,
             true
     };
 	packet_send(&ppr._header);
@@ -76,13 +77,6 @@ void handle_init_pos(void *packet, PlayState *state) {
     };
 	packet_send(&cmd._header);
 	packet_free(&cmd._header);
-
-    for (int i = 0; i < 100; ++i) {
-        ppr.yaw -= 5;
-        packet_send(&ppr._header);
-        usleep(1000 * 10);
-    }
-
     packet_free(&ppr._header);
 }
 

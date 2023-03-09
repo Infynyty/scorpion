@@ -13,6 +13,7 @@
 #include "PlayState.h"
 #include <pthread.h>
 #include "AStar.h"
+#include "Movement.h"
 
 
 // Connection status: STATUS
@@ -286,7 +287,6 @@ void *handle_packets(void *wrapper_arg) {
                         break;
                     }
                     case KEEP_ALIVE_CLIENTBOUND_ID: {
-                        find_path(position_new(0, -61, 0, 0, 0), position_new(4, -61, 2, 0, 0), state->worldState);
 
                         KeepAliveClientboundPacket packet = {._header = keep_alive_clientbound_packet_new()};
                         packet_decode(&packet._header, generic_packet->data);
@@ -294,6 +294,11 @@ void *handle_packets(void *wrapper_arg) {
                         break;
                     }
                     case PLAYER_CHAT_MESSAGE_ID: {
+                        uint32_t counter = 0;
+                        Position ** positions = find_path(state->clientState->position, position_new(0, -61, 4, 0, 0), state->worldState, &counter);
+                        for (int i = 0; i < counter; ++i) {
+                            move_player(positions[i], state);
+                        }
                         PlayerChatMessagePacket packet = {._header = player_chat_message_header(
                                 &packet.has_message_signature,
                                 &packet.has_unsigned_content,

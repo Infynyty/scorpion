@@ -5,7 +5,7 @@
 #include "Position.h"
 #include "WorldState.h"
 
-#define SEARCH_AREA_SIZE 16
+#define SEARCH_AREA_SIZE 8
 
 typedef struct BlockNode {
     uint32_t index;
@@ -229,13 +229,14 @@ void get_neighbours(BlockNode *node, BlockNode **neighbours, SearchArea *area, W
 
 void add_neighbour();
 
-Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t start_index, SearchArea *area) {
+Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t start_index, SearchArea *area, uint32_t *steps) {
     uint32_t counter = 1;
     uint32_t current = goal_index;
     while (current != start_index) {
         counter++;
         current = parents[current];
     }
+    memmove(steps, &counter, sizeof(uint32_t));
     Position **positions = malloc(sizeof(Position *) * counter);
     current = goal_index;
     for (int i = 0; i < counter; i++) {
@@ -245,16 +246,27 @@ Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t st
     return positions;
 }
 
-Position** find_path(Position *start, Position *goal, WorldState *state) {
-    SearchArea *area = search_area_new(start, goal);
-    PriorityQueue *queue = priority_queue_new(1000);
+void print_result(Position **positions, uint16_t count) {
+    for (int i = 0; i < count; i++) {
+        cmc_log(INFO, "Go to X %lf Y %lf Z %lf.", positions[i]->x, positions[i]->y, positions[i]->z);
+    }
+}
+
+Position** find_path(Position *start, Position *goal, WorldState *state, uint32_t *counter) {
+    Position *start_copy = position_new(start->x, start->y, start->z, start->pitch, start->yaw);
+    start_copy->x = floor(start_copy->x);
+    start_copy->y = floor(start_copy->y - 1);
+    start_copy->z = floor(start_copy->z);
+
+    SearchArea *area = search_area_new(start_copy, goal);
+    PriorityQueue *queue = priority_queue_new(100000);
     uint16_t *costs = malloc(sizeof(uint16_t) * area->x_length * area->y_length * area->z_length);
+    uint32_t *parents = malloc(sizeof(uint16_t) * area->x_length * area->y_length * area->z_length);
     for (int i = 0; i < area->x_length * area->y_length * area->z_length; i++) {
         costs[i] = UINT16_MAX;
     }
-    uint32_t parents[1000] = {0}; //TODO: make variable size
 
-    BlockNode *start_node = block_node_new(abs_pos_to_index(area, start), 0);
+    BlockNode *start_node = block_node_new(abs_pos_to_index(area, start_copy), 0);
     BlockNode *goal_node = block_node_new(abs_pos_to_index(area, goal), 0);
     uint32_t start_index = start_node->index;
     uint32_t goal_index = goal_node->index;
@@ -293,6 +305,9 @@ Position** find_path(Position *start, Position *goal, WorldState *state) {
         free(current);
     }
     if (costs[goal_node->index] == UINT16_MAX) return NULL;
-    Position **result = translate_parents(parents, goal_index, start_index, area);
+    uint32_t steps = 0;
+    Position **result = translate_parents(parents, goal_index, start_index, area, &steps);
+    memmove(counter, &steps, sizeof(uint32_t));
+    print_result(result, steps);
     return result;
 }

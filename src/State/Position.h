@@ -25,4 +25,6 @@ Position *position_new(double x, double y, double z, float yaw, float pitch);
 
 void position_free(Position *position);
 
+void position_change_position_relative(Position *position, double x_delta, double y_delta, double z_delta);
+
 #endif //CMC_POSITION_H

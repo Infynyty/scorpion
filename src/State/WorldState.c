@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <json-c/json.h>
 #include <math.h>
+#include <netinet/in.h>
 
 #define SECTIONS_IN_CHUNK_COLUMN 24
 
@@ -47,17 +48,27 @@ void init_global_palette(WorldState *world_state) {
     json_object_put(report);
 }
 
+void block_state_free(BlockState *state) {
+    if (state == NULL) return;
+    free(state->name);
+    free(state);
+}
+
+void paletted_container_free(PalettedContainer *container) {
+    if (container == NULL) return;
+    free(container->palette);
+    buffer_free(container->data);
+}
+
 void chunk_data_free(ChunkData *data) {
+    if (data == NULL) return;
     for (int i = 0; i < SECTIONS_IN_CHUNK_COLUMN; i++) {
-        free(data->block_states[i]->palette);
-        buffer_free(data->block_states[i]->data);
-        free(data->block_states[i]);
-        free(data->biomes[i]->palette);
-        buffer_free(data->biomes[i]->data);
-        data->biomes[i];
+        paletted_container_free(data->block_states[i]);
+        paletted_container_free(data->biomes[i]);
     }
     free(data->block_states);
     free(data->biomes);
+    free(data);
 }
 
 WorldState *world_state_new() {
@@ -257,7 +268,7 @@ BlockState *get_block_at(Position *position, WorldState *state) {
     uint32_t block_index_in_long = block_index - (long_index * blocks_per_long);
     uint32_t block_bit_position = long_index * sizeof(uint64_t) * 8 + block_index_in_long * section->bits_per_entry;
     uint64_t block = *((uint64_t *) (section->data->bytes + (long_index * sizeof(uint64_t))));
-    block = ntohll(block);
+    block = be64toh(block);
 
     int8_t offset_from_LSB = (int8_t) ((sizeof(block) * 8) - (section->bits_per_entry + block_bit_position % 64));
     int8_t offset_from_MSB = (int8_t) ((sizeof(block) * 8) - section->bits_per_entry);
