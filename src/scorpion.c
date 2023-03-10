@@ -148,8 +148,34 @@ void register_handlers() {
     register_handler(&handle_remove_chunk, UNLOAD_CHUNK_PKT);
 }
 
+void print_ascii_art() {
+    printf("\033[1;31m");
+    printf("                                                                                \n");
+    printf("                ┌╓                                                              \n");
+    printf("            ┌▄▄█▄▄▄█▀╗┌                                                         \n");
+    printf("           ╓┘─█└└──▀▄┌╙█╥                                                       \n");
+    printf("           ██▀        ╙██▌                                                      \n");
+    printf("           █▌▌          ██▌                                                     \n");
+    printf("          ▐▀█▌┌       ▄▄██▌                                                     \n");
+    printf("     ▄▄▄██═██▌─└┐         ╒█▀└▀▀ ▄█▀└▀█─█▀└└▀█ █▌╙▀█  █▌▀▀█ █ ▄█▀└╙█▄ ██▄   █   \n");
+    printf("    ╝└     ─███▌╓██▄      └▀▀██▄ █      █    █ ██╗▄▀  ██▄█▀ █▐█     █ █ ▀█▄ █   \n");
+    printf("   ┘       └██▄┘████▄┌    █▄▄▄▄▀ ▀█▄▄▄▀ ▀█▄▄█▀ █▌ ╙█▄┌█▌    █ ▀▀▄▄▄█▀ █   ▀██   \n");
+    printf("        ╓▄█▀▀██▄┌┘╙▀╒┘└─┌───┌╓┌                                                 \n");
+    printf("       ▐▀└─  └└▀█▄▄┌───┐┌─└▄▀▀▀▀█▄▄▄                                            \n");
+    printf("       ▌        ╒█▀███▄▄▄▄█└────└▀▀█▌└┐                                         \n");
+    printf("      └         ▐█  ▐█└ █▀                                                      \n");
+    printf("                 ▀█  █  █                                                       \n");
+    printf("                   ▌  └╕██┌                                                     \n");
+    printf("                   └     ██▄▄┌                                                  \n");
+    printf("                          ▀▀█▀▀══─                                              \n");
+    printf("                             ╙╘┐                                                \n");
+    printf("                                                                                \n");
+    printf("\x1b[0m");
+}
+
 
 int main() {
+    print_ascii_art();
 #ifdef ENABLE_TESTS
     sc_log(INFO, "Running tests...");
     run_tests();
