@@ -240,7 +240,10 @@ Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t st
     Position **positions = malloc(sizeof(Position *) * counter);
     current = goal_index;
     for (int i = 0; i < counter; i++) {
-        positions[counter - 1 - i] = index_to_abs_pos(area, current);
+        Position *pos = index_to_abs_pos(area, current);
+        pos->x += 0.5f;
+        pos->z += 0.5f;
+        positions[counter - 1 - i] = pos;
         current = parents[current];
     }
     return positions;

@@ -268,7 +268,7 @@ BlockState *get_block_at(Position *position, WorldState *state) {
     uint32_t block_index_in_long = block_index - (long_index * blocks_per_long);
     uint32_t block_bit_position = long_index * sizeof(uint64_t) * 8 + block_index_in_long * section->bits_per_entry;
     uint64_t block = *((uint64_t *) (section->data->bytes + (long_index * sizeof(uint64_t))));
-    block = ntohll(block);
+    block = be64toh(block);
 
     int8_t offset_from_LSB = (int8_t) ((sizeof(block) * 8) - (section->bits_per_entry + block_bit_position % 64));
     int8_t offset_from_MSB = (int8_t) ((sizeof(block) * 8) - section->bits_per_entry);

@@ -7,7 +7,9 @@
 #include "Packets/Packets.h"
 #include "Authentication.h"
 #include "WorldState.h"
+#include "munit.h"
 #include <openssl/bn.h>
+#include "Tests.h"
 
 void print_status_response(void *packet, PlayState *state) {
 	StatusResponsePacket *response = packet;
@@ -178,6 +180,8 @@ void register_handlers() {
 
 
 int main() {
+    run_tests();
+
     PlayState *play_state = play_state_new();
     cmc_log(DEBUG, "Initializing global palette...");
     init_global_palette(play_state->worldState);

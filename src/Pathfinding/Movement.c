@@ -3,8 +3,8 @@
 #include <math.h>
 #include "PlayState.h"
 
-#define PACKETS_PER_BLOCK 20
-#define DISTANCE_PER_PACKET 0.08f
+#define PACKETS_PER_BLOCK 10
+#define DISTANCE_PER_PACKET 0.1f
 
 void move_player(Position *goal, PlayState *state) {
     Position *start = state->clientState->position;
