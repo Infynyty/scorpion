@@ -20,8 +20,8 @@
 void init_global_palette(WorldState *world_state) {
     json_object *report = json_object_from_file("blocks.json");
     if (report == NULL) {
-        cmc_log(INFO, "Error: %s", json_util_get_last_err());
-        cmc_log(ERR, "Could not find blocks report. Exiting...");
+        sc_log(INFO, "Error: %s", json_util_get_last_err());
+        sc_log(ERR, "Could not find blocks report. Exiting...");
         exit(EXIT_FAILURE);
     }
 

@@ -13,7 +13,7 @@ define ACTIVE_LOG_LEVEL INFO
 #endif
 
 // TODO: Reimplement colors
-void cmc_log(enum CMC_LOG_LEVEL level, const char *message, ...) {
+void sc_log(enum CMC_LOG_LEVEL level, const char *message, ...) {
     CMC_LOG_LEVEL active_level = ACTIVE_LOG_LEVEL;
 	if (level < active_level) {
 		return;

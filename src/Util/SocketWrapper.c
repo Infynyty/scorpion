@@ -11,7 +11,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <unistd.h>
 #include "Logger.h"
 
 typedef struct SocketWrapper {
@@ -25,7 +25,7 @@ typedef struct SocketWrapper {
 
 static const SocketWrapper *server;
 
-SocketWrapper *connect_wrapper() {
+void connect_wrapper() {
 	SocketWrapper *socketWrapper = malloc(sizeof(SocketWrapper));
 #ifdef _WIN32
 	WSADATA wsaData;
@@ -44,20 +44,24 @@ SocketWrapper *connect_wrapper() {
 	server_address.sin_port = htons(25565);
 	server_address.sin_family = AF_INET;
 
-	cmc_log(DEBUG, "Trying to connect to port %d at ip %d", server_address.sin_port, INADDR_LOOPBACK);
+    sc_log(DEBUG, "Trying to connect to port %d at ip %d", server_address.sin_port, INADDR_LOOPBACK);
 	int connection_status = connect(sock, (const struct sockaddr *) &server_address, sizeof server_address);
 
 	if (connection_status == -1) {
-		cmc_log(ERR, "Connection to server could not be established.");
-		cmc_log(ERR, "Error code: %d", errno);
+        sc_log(ERR, "Connection to server could not be established.");
+        sc_log(ERR, "Error code: %d", errno);
 		exit(EXIT_FAILURE);
 	}
 	server = socketWrapper;
-	return socketWrapper;
 }
 
 const SocketWrapper *get_socket() {
 	return server;
+}
+
+void close_wrapper() {
+    close(server->socket);
+    free(server);
 }
 
 void send_wrapper(SocketWrapper *socket, void *bytes, size_t length) {

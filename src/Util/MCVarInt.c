@@ -104,13 +104,4 @@ int32_t varint_decode(unsigned char *buffer) {
 	return result;
 }
 
-uint8_t *get_bytes(MCVarInt *varInt) {
-	return varInt->bytes;
-}
-
-unsigned char get_length(MCVarInt *varInt) {
-	return varInt->size;
-}
-
-
 

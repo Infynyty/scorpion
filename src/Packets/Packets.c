@@ -95,19 +95,19 @@ void packet_free(PacketHeader **packet) {
             case PKT_OPTIONAL:
             case PKT_ENUM:
             default:
-                cmc_log(ERR, "Used unsupported type at packet_free(): %d", m_type);
+                sc_log(ERR, "Used unsupported type at packet_free(): %d", m_type);
                 exit(EXIT_FAILURE);
         }
     }
     ptr = NULL;
     int32_t id = varint_decode((*(packet))->packet_id->bytes);
-    cmc_log(INFO, "Freeing packet with id %d", id);
+    sc_log(INFO, "Freeing packet with id %d", id);
     free((*packet)->optionals);
     free((*packet)->member_types);
     free((*packet)->packet_id);
     free((*packet));
     (*packet) = NULL;
-    cmc_log(INFO, "Done with id %d", id);
+    sc_log(INFO, "Done with id %d", id);
 }
 
 static bool compression_enabled = false;
@@ -126,7 +126,7 @@ static EVP_CIPHER_CTX *ctx_encrypt;
 static EVP_CIPHER_CTX *ctx_decrypt;
 
 void init_encryption(NetworkBuffer *shared_secret) {
-    cmc_log(INFO, "Enabled encryption");
+    sc_log(INFO, "Enabled encryption");
     encryption_enabled = true;
     ctx_encrypt = EVP_CIPHER_CTX_new();
     ctx_decrypt = EVP_CIPHER_CTX_new();
@@ -233,7 +233,7 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
                     break;
                 }
                 default:
-                    cmc_log(ERR, "Used unsupported type at packet_encode(): %d", m_type);
+                    sc_log(ERR, "Used unsupported type at packet_encode(): %d", m_type);
                     exit(EXIT_FAILURE);
             }
         }
@@ -276,7 +276,7 @@ NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
     unsigned char temp[packet->size + EVP_CIPHER_block_size(EVP_aes_128_cfb8()) - 1];
     int out_length;
     if (!EVP_EncryptUpdate(ctx_encrypt, temp, &out_length, packet->bytes, packet->size)) {
-        cmc_log(ERR, "OpenSSL encryption error.");
+        sc_log(ERR, "OpenSSL encryption error.");
         exit(EXIT_FAILURE);
     }
     buffer_write(encrypted, temp, out_length);
@@ -447,7 +447,8 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 break;
             }
             case PKT_SKIP: {
-                cmc_log(WARN, "Skipping packet fields for packet with id 0x%x.", varint_decode((*header)->packet_id->bytes));
+                sc_log(WARN, "Skipping packet fields for packet with id 0x%x.",
+                       varint_decode((*header)->packet_id->bytes));
                 return;
             }
             case PKT_IDENTIFIER:
@@ -458,7 +459,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             case PKT_ARRAY:
             case PKT_ENUM:
             default:
-                cmc_log(ERR, "Tried decoding unhandled generic_packet field %d", field);
+                sc_log(ERR, "Tried decoding unhandled generic_packet field %d", field);
                 exit(EXIT_FAILURE);
         }
         memcpy(ptr, variable_pointer, variable_size);
@@ -473,7 +474,7 @@ uint8_t receive_byte() {
         int32_t outlen;
         unsigned char out;
         if (!EVP_DecryptUpdate(ctx_decrypt, &out, &outlen, &byte, sizeof(byte))) {
-            cmc_log(ERR, "OpenSSL decryption error");
+            sc_log(ERR, "OpenSSL decryption error");
             exit(EXIT_FAILURE);
         }
         byte = out;
@@ -577,6 +578,7 @@ void *packet_receive(void *list_arg) {
         pthread_cond_broadcast(list->condition);
         pthread_mutex_unlock(list->mutex);
     }
+    return NULL;
 }
 
 void packet_generate_header(
@@ -600,7 +602,7 @@ void packet_generate_header(
     header->state = state;
 }
 
-PacketHeader *handshake_pkt_header() {
+PacketHeader *handshake_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField fields[] = {
             PKT_VARINT,
@@ -612,20 +614,20 @@ PacketHeader *handshake_pkt_header() {
     return header;
 }
 
-PacketHeader *status_request_packet_new() {
+PacketHeader *status_request_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     packet_generate_header(header, NULL, 0, 0x00, SERVERBOUND, STATUS);
     return header;
 }
 
-PacketHeader *status_response_packet_new() {
+PacketHeader *status_response_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField fields[] = {PKT_STRING};
     packet_generate_header(header, fields, 1, 0x00, CLIENTBOUND, STATUS);
     return header;
 }
 
-PacketHeader *login_start_packet_header() {
+PacketHeader *login_start_header_header() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_STRING,
@@ -636,7 +638,7 @@ PacketHeader *login_start_packet_header() {
     return header;
 }
 
-PacketHeader *disconnect_login_packet_new() {
+PacketHeader *disconnect_login_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField fields[] = {
             PKT_STRING
@@ -645,7 +647,7 @@ PacketHeader *disconnect_login_packet_new() {
     return header;
 }
 
-PacketHeader *encryption_response_packet_new() {
+PacketHeader *encryption_response_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_BYTEARRAY,
@@ -656,7 +658,7 @@ PacketHeader *encryption_response_packet_new() {
 }
 
 
-PacketHeader *encryption_request_packet_new() {
+PacketHeader *encryption_request_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_STRING,
@@ -667,7 +669,7 @@ PacketHeader *encryption_request_packet_new() {
     return header;
 }
 
-PacketHeader *set_compression_packet_new() {
+PacketHeader *set_compression_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField types[] = {PKT_VARINT};
     packet_generate_header(header, types, 1, 0x03, CLIENTBOUND, LOGIN);
@@ -675,7 +677,7 @@ PacketHeader *set_compression_packet_new() {
 }
 
 // TODO: implement arrays
-PacketHeader *login_success_packet_new() {
+PacketHeader *login_success_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_UUID,
@@ -687,7 +689,7 @@ PacketHeader *login_success_packet_new() {
     return header;
 }
 
-PacketHeader *client_info_packet_new() {
+PacketHeader *client_info_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_STRING,
@@ -703,7 +705,7 @@ PacketHeader *client_info_packet_new() {
     return header;
 }
 
-PacketHeader *set_player_pos_and_rot_packet_new() {
+PacketHeader *set_player_pos_and_rot_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_DOUBLE,
@@ -717,7 +719,7 @@ PacketHeader *set_player_pos_and_rot_packet_new() {
     return header;
 }
 
-PacketHeader *client_command_packet_new() {
+PacketHeader *client_command_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_VARINT
@@ -726,7 +728,7 @@ PacketHeader *client_command_packet_new() {
     return header;
 }
 
-PacketHeader *confirm_teleportation_packet_new() {
+PacketHeader *confirm_teleportation_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_VARINT
@@ -735,7 +737,7 @@ PacketHeader *confirm_teleportation_packet_new() {
     return header;
 }
 
-PacketHeader *login_play_packet_new(bool *hasDeathLocation) {
+PacketHeader *login_play_header_new(bool *hasDeathLocation) {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_UINT32,
@@ -765,7 +767,7 @@ PacketHeader *login_play_packet_new(bool *hasDeathLocation) {
 }
 
 
-PacketHeader *disconnect_play_packet_new() {
+PacketHeader *disconnect_play_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_STRING
@@ -774,7 +776,7 @@ PacketHeader *disconnect_play_packet_new() {
     return header;
 }
 
-PacketHeader *synchronize_player_position_packet_new() {
+PacketHeader *synchronize_player_position_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_DOUBLE,
@@ -790,7 +792,7 @@ PacketHeader *synchronize_player_position_packet_new() {
     return header;
 }
 
-PacketHeader *update_recipes_packet_new() {
+PacketHeader *update_recipes_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_VARINT,
@@ -800,7 +802,7 @@ PacketHeader *update_recipes_packet_new() {
     return header;
 }
 
-PacketHeader *change_difficulty_packet_new() {
+PacketHeader *change_difficulty_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_UINT8,
@@ -810,7 +812,7 @@ PacketHeader *change_difficulty_packet_new() {
     return header;
 }
 
-PacketHeader *player_abilities_cb_packet_new() {
+PacketHeader *player_abilities_cb_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_UINT8,
@@ -821,7 +823,7 @@ PacketHeader *player_abilities_cb_packet_new() {
     return header;
 }
 
-PacketHeader *keep_alive_clientbound_packet_new() {
+PacketHeader *keep_alive_clientbound_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_UINT64
@@ -830,7 +832,7 @@ PacketHeader *keep_alive_clientbound_packet_new() {
     return header;
 }
 
-PacketHeader *keep_alive_serverbound_new() {
+PacketHeader *keep_alive_serverbound_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_UINT64
@@ -840,7 +842,7 @@ PacketHeader *keep_alive_serverbound_new() {
 }
 
 //TODO: Packet has optional BitSet that is left out here
-PacketHeader *player_chat_message_header(
+PacketHeader *player_chat_message_header_new(
         bool *has_signature,
         bool *has_unsigned_content,
         bool *has_target_network
@@ -873,7 +875,7 @@ PacketHeader *player_chat_message_header(
 }
 
 //TODO: Complete packet
-PacketHeader *chunk_data_packet_new() {
+PacketHeader *chunk_data_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_INT32,
@@ -886,7 +888,7 @@ PacketHeader *chunk_data_packet_new() {
     return header;
 }
 
-PacketHeader *unload_chunk_packet_new() {
+PacketHeader *unload_chunk_header_new() {
     PacketHeader *header = malloc(sizeof(PacketHeader));
     PacketField typeArray[] = {
             PKT_INT32,

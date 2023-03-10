@@ -14,7 +14,7 @@ void move_player(Position *goal, PlayState *state) {
     double x_packets_to_send = fabs(x_diff) * PACKETS_PER_BLOCK;
     double z_packets_to_send = fabs(z_diff) * PACKETS_PER_BLOCK;
 
-    SetPlayerPosAndRotPacket pos = {._header = set_player_pos_and_rot_packet_new()};
+    SetPlayerPosAndRotPacket pos = {._header = set_player_pos_and_rot_header_new()};
     pos.x = start->x;
     pos.y = start->y;
     pos.z = start->z;

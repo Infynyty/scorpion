@@ -251,7 +251,7 @@ Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t st
 
 void print_result(Position **positions, uint16_t count) {
     for (int i = 0; i < count; i++) {
-        cmc_log(INFO, "Go to X %lf Y %lf Z %lf.", positions[i]->x, positions[i]->y, positions[i]->z);
+        sc_log(INFO, "Go to X %lf Y %lf Z %lf.", positions[i]->x, positions[i]->y, positions[i]->z);
     }
 }
 

@@ -22,14 +22,14 @@ void buffer_free(NetworkBuffer *buffer) {
 void buffer_write(NetworkBuffer *buffer, void *bytes, const size_t length_in_bytes) {
 	if (length_in_bytes == 0) return;
 	if (buffer->size + length_in_bytes >= MAX_BUFFER_SIZE) {
-		cmc_log(ERR, "NetworkBuffer size (%d) too big!", buffer->size + length_in_bytes);
+        sc_log(ERR, "NetworkBuffer size (%d) too big!", buffer->size + length_in_bytes);
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
 	}
 	//Resize array
 	char *temp = realloc(buffer->bytes, (buffer->size + length_in_bytes) * sizeof(char));
 	if (temp == NULL) {
-		cmc_log(ERR, "Reallocation failed!");
+        sc_log(ERR, "Reallocation failed!");
 		free(buffer->bytes);
 		exit(EXIT_FAILURE);
 	} else {
@@ -73,7 +73,7 @@ void buffer_remove(NetworkBuffer *buffer, const size_t length) {
 
 void buffer_peek(NetworkBuffer *buffer, const size_t length, void *dest) {
     if (length > buffer->size) {
-        cmc_log(ERR, "Tried polling %d bytes of a buffer with size %d", length, buffer->size);
+        sc_log(ERR, "Tried polling %d bytes of a buffer with size %d", length, buffer->size);
         exit(EXIT_FAILURE);
     }
     memmove(dest, buffer->bytes, length);
@@ -109,7 +109,7 @@ NetworkBuffer *string_buffer_new(char *string) {
 }
 
 void buffer_print_string(NetworkBuffer *buffer) {
-	cmc_log(INFO, "%s", buffer->bytes);
+    sc_log(INFO, "%s", buffer->bytes);
 }
 
 int32_t buffer_read_varint(NetworkBuffer *buffer) {

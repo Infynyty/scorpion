@@ -83,12 +83,13 @@ void poll_xbl_access(AuthenticationDetails *details) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(DEBUG, "Requesting XBL token with the following payload: %s", request_string);
+        sc_log(DEBUG, "Requesting XBL token with the following payload: %s", request_string);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_object *json_response = json_tokener_parse((char *) response->bytes);
-        cmc_log(DEBUG, "Received the following response for the XBL token request: %s", json_object_get_string(json_response));
+        sc_log(DEBUG, "Received the following response for the XBL token request: %s",
+               json_object_get_string(json_response));
         json_object *json_token = json_object_object_get(json_response, "Token");
         buffer_write(details->xbl_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
         auth_token_save(details);
@@ -129,28 +130,28 @@ void poll_xbl_user_authentication(char *device_code, AuthenticationDetails *deta
             json_object *json_response = json_tokener_parse((char *) response->bytes);
             json_object *error = json_object_object_get(json_response, "error");
             if (strcmp(json_object_get_string(error), "authorization_declined") == 0) {
-                cmc_log(ERR, "User declined XBox live authorization.");
+                sc_log(ERR, "User declined XBox live authorization.");
                 json_object_put(json_response);
                 exit(EXIT_FAILURE);
             } else if (strcmp(json_object_get_string(error), "bad_verification_code") == 0) {
-                cmc_log(ERR, "Invalid XBox live token.");
+                sc_log(ERR, "Invalid XBox live token.");
                 json_object_put(json_response);
                 exit(EXIT_FAILURE);
             } else if(strcmp(json_object_get_string(error), "expired_token") == 0) {
-                cmc_log(INFO, "XBox live token expired.");
-                cmc_log(INFO, "Please retry with a new token.");
+                sc_log(INFO, "XBox live token expired.");
+                sc_log(INFO, "Please retry with a new token.");
                 json_object_put(json_response);
                 exit(EXIT_FAILURE);
             } else if (strcmp(json_object_get_string(error), "authorization_pending") == 0) {
                 json_object_put(json_response);
-                cmc_log(INFO, "User is currently authenticating. Awaiting response...");
+                sc_log(INFO, "User is currently authenticating. Awaiting response...");
                 sleep(3);
                 poll_xbl_user_authentication(device_code, details);
             }
         } else if (response_code == 200) {
             json_object *json_response = json_tokener_parse((char *) response->bytes);
             json_object *json_token = json_object_object_get(json_response, "access_token");
-            cmc_log(DEBUG, "Received Microsoft access token: %s", json_object_get_string(json_token));
+            sc_log(DEBUG, "Received Microsoft access token: %s", json_object_get_string(json_token));
             buffer_write(details->ms_access_token, json_object_get_string(json_token),
                          json_object_get_string_len(json_token));
             json_object_get(json_token);
@@ -182,15 +183,15 @@ void authenticate_xbl(AuthenticationDetails *details) {
         json_object *user_code = json_object_object_get(json_response, "user_code");
         json_object *device_code = json_object_object_get(json_response, "device_code");
         json_object *verification_uri = json_object_object_get(json_response, "verification_uri");
-        cmc_log(INFO,
-                "Please go to %s and enter the code %s.",
-                json_object_get_string(verification_uri),
-                json_object_get_string(user_code)
-                );
+        sc_log(INFO,
+               "Please go to %s and enter the code %s.",
+               json_object_get_string(verification_uri),
+               json_object_get_string(user_code)
+        );
 
         buffer_remove(response, response->size);
 
-        cmc_log(DEBUG, "Received a device code %s", json_object_get_string(device_code));
+        sc_log(DEBUG, "Received a device code %s", json_object_get_string(device_code));
 
         poll_xbl_user_authentication(json_object_get_string(device_code), details);
 
@@ -235,12 +236,12 @@ void authenticate_xsts(AuthenticationDetails *details) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(DEBUG, "Requesting XSTS token with the following payload: %s", request_string);
+        sc_log(DEBUG, "Requesting XSTS token with the following payload: %s", request_string);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_object *json_response = json_tokener_parse((char *) response->bytes);
-        cmc_log(DEBUG, "Received XSTS token: %s", json_object_get_string(json_response));
+        sc_log(DEBUG, "Received XSTS token: %s", json_object_get_string(json_response));
         json_object *json_token = json_object_object_get(json_response, "Token");
         buffer_write(details->xsts_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
         json_object *display_claims = json_object_object_get(json_response, "DisplayClaims");
@@ -291,14 +292,15 @@ void authenticate_minecraft(AuthenticationDetails *details) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(DEBUG, "Requesting Minecraft access token with the following payload: %s", request_string);
+        sc_log(DEBUG, "Requesting Minecraft access token with the following payload: %s", request_string);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_tokener *tokener = json_tokener_new();
         json_object *json_response = json_tokener_parse_ex(tokener, (char *) response->bytes, (int) response->size);
 
-        cmc_log(DEBUG, "Received a Minecraft access token with the following response: %s", json_object_get_string(json_response));
+        sc_log(DEBUG, "Received a Minecraft access token with the following response: %s",
+               json_object_get_string(json_response));
 
 
         json_object *json_token = json_object_object_get(json_response, "access_token");
@@ -390,13 +392,13 @@ void authenticate_server(EncryptionRequestPacket *packet, NetworkBuffer *unencry
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(DEBUG, "Requesting to join server with the following payload: %s", request_string);
+        sc_log(DEBUG, "Requesting to join server with the following payload: %s", request_string);
 
         CURLcode res = curl_easy_perform(curl);
 
         curl_slist_free_all(headers);
         json_object *json_response = json_tokener_parse((char *) response->bytes);
-        cmc_log(DEBUG, "Received server auth response: %s", json_object_get_string(json_response));
+        sc_log(DEBUG, "Received server auth response: %s", json_object_get_string(json_response));
         json_object_put(request);
         buffer_free(response);
     }
@@ -425,12 +427,12 @@ void get_player_profile(AuthenticationDetails *details, ClientState *state) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &save_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 
-        cmc_log(DEBUG, "Request profile information with the following payload: %s", auth_header);
+        sc_log(DEBUG, "Request profile information with the following payload: %s", auth_header);
 
         CURLcode res = curl_easy_perform(curl);
 
         json_object *json_response = json_tokener_parse((char *) response->bytes);
-        cmc_log(DEBUG, "Received player profile information: %s", json_object_get_string(json_response));
+        sc_log(DEBUG, "Received player profile information: %s", json_object_get_string(json_response));
         json_object *name = json_object_object_get(json_response, "name");
         NetworkBuffer *player_name = string_buffer_new(json_object_get_string(name));
         json_object *uuid = json_object_object_get(json_response, "id");
@@ -446,23 +448,23 @@ void get_player_profile(AuthenticationDetails *details, ClientState *state) {
 }
 
 void authenticate(ClientState *state) {
-    cmc_log(INFO, "Authenticating Minecraft account...");
+    sc_log(INFO, "Authenticating Minecraft account...");
 
     auth_token_get(state->auth_details);
     if (state->auth_details->xbl_token->size == 0) {
-        cmc_log(INFO, "No XBox live token saved, requesting new one ...");
+        sc_log(INFO, "No XBox live token saved, requesting new one ...");
         authenticate_xbl(state->auth_details);
         poll_xbl_access(state->auth_details);
     } else {
-        cmc_log(DEBUG, "Using saved XBL token...");
+        sc_log(DEBUG, "Using saved XBL token...");
     }
 
     authenticate_xsts(state->auth_details);
     authenticate_minecraft(state->auth_details);
 
-    cmc_log(INFO, "Successfully authenticated with Minecraft.");
+    sc_log(INFO, "Successfully authenticated with Minecraft.");
 
     get_player_profile(state->auth_details, state);
 
-    cmc_log(INFO, "Successfully received player data for player %s.", state->profile_info->name->bytes);
+    sc_log(INFO, "Successfully received player data for player %s.", state->profile_info->name->bytes);
 }

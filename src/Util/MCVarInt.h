@@ -14,13 +14,7 @@ typedef struct MCVarInt {
 	uint8_t bytes[5];
 } __attribute__((__packed__)) MCVarInt;
 
-unsigned char *readVarInt(int varInt);
-
 MCVarInt *varint_encode(unsigned int givenInt);
-
-uint8_t *get_bytes(MCVarInt *varInt);
-
-unsigned char get_length(MCVarInt *varInt);
 
 int varint_receive(SocketWrapper *socket);
 

@@ -7,18 +7,13 @@
 #include <winsock2.h>
 #endif
 
-typedef struct SocketWrapper {
-#ifdef _WIN32
-	SOCKET socket;
-#endif
-#if defined(__APPLE__) || defined(__linux__)
-	int socket;
-#endif
-} SocketWrapper;
+typedef struct SocketWrapper SocketWrapper;
 
-SocketWrapper *connect_wrapper();
+void connect_wrapper();
 
 SocketWrapper *get_socket();
+
+void close_wrapper();
 
 int receive_wrapper(SocketWrapper *socket, void *bytes, size_t size);
 

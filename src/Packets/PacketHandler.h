@@ -1,7 +1,6 @@
 #ifndef CMC_PACKETHANDLER_H
 #define CMC_PACKETHANDLER_H
 
-#include "ConnectionState/ConnectionState.h"
 #include "SocketWrapper.h"
 #include "../State/ClientState.h"
 #include "PlayState.h"
@@ -36,7 +35,10 @@ typedef enum Packets {
     CHUNK_DATA_PKT,
     UNLOAD_CHUNK_PKT,
     KEEP_ALIVE_SERVERBOUND_PKT,
-	SET_PLAYER_ROT_PKT
+	SET_PLAYER_ROT_PKT,
+
+    //Always last, to count the number of defined packets
+    PACKET_COUNT
 } Packets;
 
 typedef struct PacketHandleWrapper {
@@ -45,10 +47,31 @@ typedef struct PacketHandleWrapper {
     pthread_t *receive_thread;
 } PacketHandleWrapper;
 
-void * handle_packets(void *wrapper);
+/**
+ * Consumes packets that are added to a shared linked list by the function <packet_receive>. This function is thread-safe.
+ * Consuming packets includes generating the right struct for any given generic packet and then calling triggering a
+ * packet event for the correct packet type. The packet is freed afterwards.
+ *
+ * @param wrapper Contains the current play state, the list to consume the packets from and a thread reference to start
+ *                receiving packets concurrently after the login has been completed.
+ * @return        NULL
+ */
+void *handle_packets(void *wrapper);
 
+
+/**
+ * Registered a packet handler. A packet handler will be called when the correct packet is received by <handle_packets>.
+ *
+ * @param handle        A pointer to the handler method. Any handler method can access the received packet by casting
+ *                      the packet pointer to the right packet.
+ * @param packet_type   The type of packet this handler should be called for.
+ * @return              The handler id.
+ */
 int register_handler(void (*handle)(void *packet, PlayState *state), Packets packet_type);
 
+/**
+ * Deregisters all currently registered handlers and frees associated pointers.
+ */
 void deregister_all_handlers();
 
 #endif //CMC_PACKETHANDLER_H

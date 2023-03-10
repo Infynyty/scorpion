@@ -9,9 +9,9 @@
 #include <stdbool.h>
 #include "MCVarInt.h"
 #include "NetworkBuffer.h"
-#include "ConnectionState.h"
 #include <pthread.h>
 
+/** Contains all possible fields a packet may have. Mostly used for the abstract decode, encode and free methods. **/
 typedef enum PacketField {
 	PKT_BOOL, PKT_BYTE, PKT_UINT8, PKT_UINT16, PKT_UINT32, PKT_UINT64, PKT_INT32, PKT_FLOAT,
 	PKT_DOUBLE, PKT_STRING, PKT_CHAT, PKT_IDENTIFIER, PKT_VARINT, PKT_VARLONG,
@@ -69,16 +69,44 @@ typedef struct {
  */
 void packet_send(PacketHeader **header);
 
+/**
+ * Receives a single packet. Used during the login procedure, while multi-threading is still disabled.
+ * @return A single generic packet that can be parsed using <packet_decode>.
+ */
 GenericPacket *packet_receive_single();
 
-void * packet_receive(void *list);
 
+/**
+ * Constantly receives packets. This method is thread-safe.
+ * @param list The linked list that the generic packets will be appended to.
+ * @return NULL
+ */
+void *packet_receive(void *list);
+
+/**
+ * Decodes a given packet. The packet struct for the packet must have been initialized before calling the method.
+ * @param header            Has to be part of the correct packet struct, as this method will overwrite the memory contents
+ *                          after the header to generate a packet.
+ * @param generic_packet    The generic packet containing the packet data.
+ */
 void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet);
 
 void packet_free(PacketHeader **packet);
 
+/**
+ * Sets the compression threshold for sending and receiving packets. Packets that have an uncompressed size larger than
+ * the threshold will be compressed. Received packets that are compressed will be decompressed after this method is called
+ * with a threshold larger or equal to zero.
+ * @param threshold Enables compression if threshold >= 0.
+ */
 void set_compression_threshold(int32_t threshold);
 
+/**
+ * Enables packet encryption. After this method has been called all packets that are sent out or received will be
+ * encrypted or decrypted respectively.
+ * @param shared_secret The shared secret that has been generated after the encryption request packet from the server
+ *                      is used as the IV for decryption / encryption.
+ */
 void init_encryption(NetworkBuffer *shared_secret);
 
 /** State: Handshake **/
@@ -97,7 +125,7 @@ typedef struct __attribute__((__packed__)) HandshakePacket {
 	MCVarInt *next_state;
 } HandshakePacket;
 
-PacketHeader * handshake_pkt_header();
+PacketHeader *handshake_header_new();
 
 
 /** State: Status **/
@@ -108,14 +136,14 @@ typedef struct StatusRequestPacket {
     PacketHeader *_header;
 } StatusRequestPacket;
 
-PacketHeader * status_request_packet_new();
+PacketHeader * status_request_header_new();
 
 typedef struct StatusResponsePacket {
     PacketHeader *_header;
 	NetworkBuffer *response;
 } StatusResponsePacket;
 
-PacketHeader * status_response_packet_new();
+PacketHeader * status_response_header_new();
 
 struct PingRequestPacket {
     PacketHeader *_header;
@@ -138,7 +166,7 @@ typedef struct __attribute__((__packed__)) LoginStartPacket {
 	NetworkBuffer *uuid;
 } LoginStartPacket;
 
-PacketHeader *login_start_packet_header();
+PacketHeader *login_start_header_header();
 
 typedef struct __attribute__((__packed__)) EncryptionResponsePacket {
     PacketHeader *_header;
@@ -146,7 +174,7 @@ typedef struct __attribute__((__packed__)) EncryptionResponsePacket {
 	NetworkBuffer *verify_token;
 } EncryptionResponsePacket;
 
-PacketHeader *encryption_response_packet_new();
+PacketHeader *encryption_response_header_new();
 
 /** Clientbound **/
 
@@ -155,7 +183,7 @@ typedef struct __attribute__((__packed__)) DisconnectLoginPacket {
 	NetworkBuffer *reason;
 } DisconnectLoginPacket;
 
-PacketHeader *disconnect_login_packet_new();
+PacketHeader *disconnect_login_header_new();
 
 typedef struct __attribute__((__packed__)) EncryptionRequestPacket {
     PacketHeader *_header;
@@ -164,14 +192,14 @@ typedef struct __attribute__((__packed__)) EncryptionRequestPacket {
 	NetworkBuffer *verify_token;
 } EncryptionRequestPacket;
 
-PacketHeader * encryption_request_packet_new();
+PacketHeader * encryption_request_header_new();
 
 typedef struct __attribute__((__packed__)) SetCompressionPacket {
     PacketHeader *_header;
 	MCVarInt *threshold;
 } SetCompressionPacket;
 
-PacketHeader * set_compression_packet_new();
+PacketHeader *set_compression_header_new();
 
 
 typedef struct __attribute__((__packed__)) LoginSuccessPacket {
@@ -182,7 +210,7 @@ typedef struct __attribute__((__packed__)) LoginSuccessPacket {
 	NetworkBuffer *properties;
 } LoginSuccessPacket;
 
-PacketHeader * login_success_packet_new();
+PacketHeader * login_success_header_new();
 
 /** State: Play **/
 
@@ -193,7 +221,7 @@ typedef struct __attribute__((__packed__)) ConfirmTeleportationPacket {
 	MCVarInt *teleport_id;
 } ConfirmTeleportationPacket;
 
-PacketHeader *confirm_teleportation_packet_new();
+PacketHeader *confirm_teleportation_header_new();
 
 typedef enum ChatMode {
 	CHAT_ENABLED = 0, CHAT_COMMANDS_ONLY = 1, CHAT_HIDDEN = 2
@@ -225,7 +253,7 @@ typedef struct __attribute__((__packed__)) ClientInformationPacket {
 	bool allow_server_listings;
 } ClientInformationPacket;
 
-PacketHeader * client_info_packet_new();
+PacketHeader *client_info_header_new();
 
 typedef struct __attribute__((__packed__)) SetPlayerPosAndRotPacket {
     PacketHeader *_header;
@@ -237,7 +265,7 @@ typedef struct __attribute__((__packed__)) SetPlayerPosAndRotPacket {
 	bool on_ground;
 } SetPlayerPosAndRotPacket;
 
-PacketHeader * set_player_pos_and_rot_packet_new();
+PacketHeader *set_player_pos_and_rot_header_new();
 
 typedef enum ClientCommandAction {
 	CLIENT_ACTION_RESPAWN = 0, CLIENT_ACTION_REQUEST_STATS = 1
@@ -248,7 +276,7 @@ typedef struct __attribute__((__packed__)) ClientCommandPacket {
 	MCVarInt *action;
 } ClientCommandPacket;
 
-PacketHeader *client_command_packet_new();
+PacketHeader *client_command_header_new();
 
 
 /** Clientbound **/
@@ -280,14 +308,14 @@ typedef struct __attribute__((__packed__)) LoginPlayPacket {
 	uint64_t death_location;
 } LoginPlayPacket;
 
-PacketHeader * login_play_packet_new(bool *hasDeathLocation);
+PacketHeader * login_play_header_new(bool *hasDeathLocation);
 
 typedef struct __attribute__((__packed__)) DisconnectPlayPacket {
     PacketHeader *_header;
 	NetworkBuffer *reason;
 } DisconnectPlayPacket;
 
-PacketHeader * disconnect_play_packet_new();
+PacketHeader * disconnect_play_header_new();
 
 typedef enum PositionFlag {
 	X_RELATIVE = 0x01, Y_RELATIVE = 0x02, Z_RELATIVE = 0x04, Y_ROT_RELATIVE = 0x08, X_ROT_RELATIVE = 0x10
@@ -305,7 +333,7 @@ typedef struct __attribute__((__packed__)) SynchronizePlayerPositionPacket {
 	bool dismount_vehicle;
 } SynchronizePlayerPositionPacket;
 
-PacketHeader * synchronize_player_position_packet_new();
+PacketHeader * synchronize_player_position_header_new();
 
 typedef struct __attribute__((__packed__)) UpdateRecipesPacket {
     PacketHeader *_header;
@@ -313,7 +341,7 @@ typedef struct __attribute__((__packed__)) UpdateRecipesPacket {
 	NetworkBuffer *recipe;
 } UpdateRecipesPacket;
 
-PacketHeader * update_recipes_packet_new();
+PacketHeader * update_recipes_header_new();
 
 typedef enum Difficulty {
 	PEACEFUL = 0, EASY = 1, NORMAL = 2, HARD = 3
@@ -325,7 +353,7 @@ typedef struct __attribute__((__packed__)) ChangeDifficultyPacket {
 	bool difficulty_locked;
 } ChangeDifficultyPacket;
 
-PacketHeader * change_difficulty_packet_new();
+PacketHeader * change_difficulty_header_new();
 
 typedef enum PlayerAbilitiesFlags {
 	INVULNERABLE = 0x01, FLYING = 0x02, ALLOW_FLYING = 0x04, CREATIVE_MODE = 0x08
@@ -338,21 +366,21 @@ typedef struct __attribute__((__packed__)) PlayerAbilitiesCBPacket {
 	float fov_modifier;
 } PlayerAbilitiesCBPacket;
 
-PacketHeader * player_abilities_cb_packet_new();
+PacketHeader * player_abilities_cb_header_new();
 
 typedef struct __attribute__((__packed__)) KeepAliveClientboundPacket {
     PacketHeader *_header;
     int64_t payload;
 } KeepAliveClientboundPacket;
 
-PacketHeader * keep_alive_clientbound_packet_new();
+PacketHeader * keep_alive_clientbound_header_new();
 
 typedef struct __attribute__((__packed__)) KeepAliveServerboundPacket {
     PacketHeader *_header;
     int64_t payload;
 } KeepAliveServerboundPacket;
 
-PacketHeader * keep_alive_serverbound_new();
+PacketHeader * keep_alive_serverbound_header_new();
 
 typedef struct __attribute__((__packed__)) PlayerChatMessagePacket {
     PacketHeader *_header;
@@ -374,7 +402,7 @@ typedef struct __attribute__((__packed__)) PlayerChatMessagePacket {
     bool network_target_name_present;
 } PlayerChatMessagePacket;
 
-PacketHeader *player_chat_message_header(bool *has_signature, bool *has_unsigned_content, bool *has_target_network);
+PacketHeader *player_chat_message_header_new(bool *has_signature, bool *has_unsigned_content, bool *has_target_network);
 
 typedef struct __attribute__((__packed__)) ChunkDataPacket {
     PacketHeader *_header;
@@ -384,7 +412,7 @@ typedef struct __attribute__((__packed__)) ChunkDataPacket {
     NetworkBuffer *data;
 } ChunkDataPacket;
 
-PacketHeader *chunk_data_packet_new();
+PacketHeader *chunk_data_header_new();
 
 typedef struct __attribute__((__packed__)) UnloadChunkPacket {
     PacketHeader *_header;
@@ -392,7 +420,7 @@ typedef struct __attribute__((__packed__)) UnloadChunkPacket {
     int32_t chunk_z;
 } UnloadChunkPacket;
 
-PacketHeader *unload_chunk_packet_new();
+PacketHeader *unload_chunk_header_new();
 
 
 #endif //CMC_PACKETS_H

@@ -17,6 +17,6 @@ static inline char *stringFromLevel(enum CMC_LOG_LEVEL level) {
 	return strings[level];
 }
 
-void cmc_log(enum CMC_LOG_LEVEL level, const char *message, ...);
+void sc_log(enum CMC_LOG_LEVEL level, const char *message, ...);
 
 #endif //CMC_LOGGER_H
