@@ -117,6 +117,7 @@ void packet_event(Packets packet_type, PacketHeader **packet, PlayState *state) 
 		(*current_node->handle)(packet, state);
 		current_node = current_node->next;
 	}
+    cmc_log(INFO, "Freeing packet after event: id %d", varint_decode((*packet)->packet_id->bytes));
 	packet_free(packet);
 }
 

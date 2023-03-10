@@ -43,6 +43,7 @@ void generic_packet_free(GenericPacket *packet) {
 }
 
 void packet_free(PacketHeader **packet) {
+    if (packet == NULL || *packet == NULL) return;
     void *ptr = ((PacketHeader **) (packet)) + 1;
     for (int i = 0; i < (*packet)->members; ++i) {
         PacketField m_type = (*packet)->member_types[i];
@@ -98,11 +99,15 @@ void packet_free(PacketHeader **packet) {
                 exit(EXIT_FAILURE);
         }
     }
-
+    ptr = NULL;
+    int32_t id = varint_decode((*(packet))->packet_id->bytes);
+    cmc_log(INFO, "Freeing packet with id %d", id);
     free((*packet)->optionals);
     free((*packet)->member_types);
     free((*packet)->packet_id);
     free((*packet));
+    (*packet) = NULL;
+    cmc_log(INFO, "Done with id %d", id);
 }
 
 static bool compression_enabled = false;

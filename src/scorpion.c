@@ -210,7 +210,6 @@ int main() {
     pthread_create(&thread_handle, NULL, handle_packets, &wrapper);
 
     pthread_join(thread_handle, NULL);
-    cmc_log(INFO, "Joined thread");
     pthread_cancel(thread_receive);
 
     pthread_cond_destroy(&condition);
