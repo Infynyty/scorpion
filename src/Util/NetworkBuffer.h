@@ -9,7 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
-#include "VarInt/MCVarInt.h"
+#include "MCVarInt.h"
 
 /**
  * A network buffer struct contains an array of chars (referred to as bytes) and a size_t containing the size

@@ -1,10 +1,10 @@
 #include "PacketHandler.h"
-#include "VarInt/MCVarInt.h"
+#include "MCVarInt.h"
 #include <stdlib.h>
 #include <unistd.h>
 
 #include "NetworkBuffer.h"
-#include "Logging/Logger.h"
+#include "Logger.h"
 #include "Packets.h"
 #include "NBTParser.h"
 #include "ServerState.h"

@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "Packets/PacketHandler.h"
-#include "Util/Logging/Logger.h"
+#include "Logger.h"
 #include "SocketWrapper.h"
 #include "Packets/Packets.h"
 #include "Authentication.h"

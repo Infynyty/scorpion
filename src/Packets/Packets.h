@@ -19,6 +19,18 @@ typedef enum PacketField {
 	PKT_BYTEARRAY, PKT_UUID, PKT_STRING_ARRAY, PKT_LOGIN_PROPERTIES, PKT_PREV_MSG_ARRAY, PKT_SKIP
 } PacketField;
 
+typedef enum ConnectionState {
+    HANDSHAKE,
+    STATUS,
+    LOGIN,
+    PLAY
+} ConnectionState;
+
+typedef enum PacketDirection {
+    SERVERBOUND,
+    CLIENTBOUND
+} PacketDirection;
+
 typedef struct GenericPacket {
 	bool is_compressed;
 	uint8_t compressed_length;

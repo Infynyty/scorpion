@@ -29,14 +29,10 @@ add_executable(scorpion
         src/State/ServerState.h
         src/State/WorldState.c
         src/State/WorldState.h
-        src/Util/ConnectionState/ConnectionState.c
-        src/Util/ConnectionState/ConnectionState.h
-        src/Util/Logging/Logger.c
-        src/Util/Logging/Logger.h
-        src/Util/VarInt/MCVarInt.c
-        src/Util/VarInt/MCVarInt.h
-        src/Util/VarLong/VarLong.c
-        src/Util/VarLong/VarLong.h
+        src/Util/Logger.c
+        src/Util/Logger.h
+        src/Util/MCVarInt.c
+        src/Util/MCVarInt.h
         src/Util/NBTParser.c
         src/Util/NBTParser.h
         src/Util/NetworkBuffer.c

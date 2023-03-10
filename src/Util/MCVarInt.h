@@ -6,7 +6,7 @@
 #define CMC_MCVARINT_H
 
 #include <stdint.h>
-#include "../SocketWrapper.h"
+#include "SocketWrapper.h"
 #include "NetworkBuffer.h"
 
 typedef struct MCVarInt {
