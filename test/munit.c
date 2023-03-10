@@ -1028,7 +1028,7 @@ munit_rand_double(void) {
     return retval;
 }
 
-/*** Test suite handling ***/
+/*** test suite handling ***/
 
 typedef struct {
     unsigned int successful;
@@ -1459,7 +1459,7 @@ munit_test_runner_run_test_with_params(MunitTestRunner* runner, const MunitTest*
         } else {
             munit_test_runner_print_color(runner, MUNIT_RESULT_STRING_ERROR, '1');
             if (MUNIT_LIKELY(stderr_buf != NULL))
-                munit_log_internal(MUNIT_LOG_ERROR, stderr_buf, "Test marked TODO, but was successful.");
+                munit_log_internal(MUNIT_LOG_ERROR, stderr_buf, "test marked TODO, but was successful.");
             runner->report.failed++;
             result = MUNIT_ERROR;
         }

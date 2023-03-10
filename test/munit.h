@@ -2,7 +2,7 @@
 #ifndef SCORPION_MUNIT_H
 #define SCORPION_MUNIT_H
 
-/* µnit Testing Framework
+/* µnit test Framework
  * Copyright (c) 2013-2017 Evan Nemerson <evan@nemerson.com>
  *
  * Permission is hereby granted, free of charge, to any person
@@ -407,13 +407,13 @@ void munit_rand_memory(size_t size, munit_uint8_t buffer[MUNIT_ARRAY_PARAM(size)
 /*** Tests and Suites ***/
 
 typedef enum {
-    /* Test successful */
+    /* test successful */
     MUNIT_OK,
-    /* Test failed */
+    /* test failed */
     MUNIT_FAIL,
-    /* Test was skipped */
+    /* test was skipped */
     MUNIT_SKIP,
-    /* Test failed due to circumstances not intended to be tested
+    /* test failed due to circumstances not intended to be tested
      * (things like network errors, invalid parameter value, failure to
      * allocate memory in the test harness, etc.). */
     MUNIT_ERROR

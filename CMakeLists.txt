@@ -11,6 +11,7 @@ include_directories(src/Util/Logging)
 include_directories(src/Util/VarInt)
 include_directories(src/Util/VarLong)
 include_directories(src/Pathfinding)
+include_directories(test)
 
 add_executable(scorpion
         src/Packets/PacketHandler.c
@@ -39,9 +40,18 @@ add_executable(scorpion
         src/Util/NetworkBuffer.h
         src/Util/SocketWrapper.c
         src/Util/SocketWrapper.h
-        src/scorpion.c src/Packets/Encryption.c src/Packets/Encryption.h src/Packets/Authentication.c src/Packets/Authentication.h src/Pathfinding/AStar.c src/Pathfinding/AStar.h src/Pathfinding/Movement.c src/Pathfinding/Movement.h src/munit.c src/munit.h src/Tests.c src/Tests.h)
+        src/scorpion.c src/Packets/Encryption.c
+        src/Packets/Encryption.h src/Packets/Authentication.c
+        src/Packets/Authentication.h src/Pathfinding/AStar.c
+        src/Pathfinding/AStar.h src/Pathfinding/Movement.c
+        src/Pathfinding/Movement.h
+        test/munit.c
+        test/munit.h
+        test/Tests.c
+        test/Tests.h)
 
 add_compile_definitions(ACTIVE_LOG_LEVEL=INFO)
+add_compile_definitions(ENABLE_TESTS)
 
 find_package(CURL REQUIRED)
 target_link_libraries(scorpion CURL::libcurl)

@@ -1,5 +1,4 @@
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include "Packets/PacketHandler.h"
 #include "Logger.h"
@@ -7,14 +6,8 @@
 #include "Packets/Packets.h"
 #include "Authentication.h"
 #include "WorldState.h"
-#include "munit.h"
 #include <openssl/bn.h>
 #include "Tests.h"
-
-void print_status_response(void *packet, PlayState *state) {
-	StatusResponsePacket *response = packet;
-	buffer_print_string(response->response);
-}
 
 void print_disconnect(void *packet, PlayState *state) {
 	DisconnectPlayPacket *reason = packet;
@@ -104,29 +97,6 @@ void handle_keep_alive(void *packet, PlayState *state) {
     packet_free(&response._header);
 }
 
-void handle_encryption(void *packet, PlayState *state) {
-    sc_log(INFO, "Encryption request received");
-}
-
-void get_status() {
-	char address[] = "localhost";
-	NetworkBuffer *address_buf = buffer_new();
-    buffer_write(address_buf, address, strlen(address));
-	HandshakePacket *handshakePacket = handshake_header_new();
-	packet_send(&handshakePacket->_header);
-	packet_free(&handshakePacket->_header);
-
-	StatusRequestPacket *request = status_request_header_new();
-	packet_send(&request->_header);
-	packet_free(&request->_header);
-
-	register_handler(&print_status_response, STATUS_RESPONSE_PKT);
-
-	ClientState *clientState = client_state_new();
-
-
-}
-
 void handle_login(ClientState *client) {
     char address[] = "localhost";
     NetworkBuffer *address_buf = buffer_new();
@@ -180,7 +150,9 @@ void register_handlers() {
 
 
 int main() {
+#ifdef ENABLE_TESTS
     run_tests();
+#endif
 
     PlayState *play_state = play_state_new();
     sc_log(DEBUG, "Initializing global palette...");
