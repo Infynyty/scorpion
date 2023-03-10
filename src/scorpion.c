@@ -151,7 +151,9 @@ void register_handlers() {
 
 int main() {
 #ifdef ENABLE_TESTS
+    sc_log(INFO, "Running tests...");
     run_tests();
+    sc_log(INFO, "Done.");
 #endif
 
     PlayState *play_state = play_state_new();

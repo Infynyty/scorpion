@@ -1,7 +1,3 @@
-//
-// Created by Kasimir on 12.10.2022.
-//
-
 #ifndef CMC_NETWORKBUFFER_H
 #define CMC_NETWORKBUFFER_H
 

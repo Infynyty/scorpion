@@ -1,7 +1,3 @@
-/**
- * Contains all methods, structs and enums that are helpful to create, manage, send and free packets.
- */
-
 #ifndef CMC_PACKETS_H
 #define CMC_PACKETS_H
 

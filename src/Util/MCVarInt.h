@@ -1,7 +1,3 @@
-//
-// Created by Kasimir Stadie on 07.10.22.
-//
-
 #ifndef CMC_MCVARINT_H
 #define CMC_MCVARINT_H
 

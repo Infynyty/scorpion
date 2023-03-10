@@ -1,7 +1,3 @@
-//
-// Created by Kasimir on 15.10.2022.
-//
-
 #ifndef CMC_LOGGER_H
 #define CMC_LOGGER_H
 
