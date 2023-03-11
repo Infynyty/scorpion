@@ -1,6 +1,6 @@
 #ifndef SCORPION_TESTS_H
 #define SCORPION_TESTS_H
 
-void run_tests();
+int run_tests();
 
 #endif //SCORPION_TESTS_H

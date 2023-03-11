@@ -240,7 +240,8 @@ void authenticate_xsts(AuthenticationDetails *details) {
 
         CURLcode res = curl_easy_perform(curl);
 
-        json_object *json_response = json_tokener_parse((char *) response->bytes);
+        json_tokener *tokener = json_tokener_new();
+        json_object *json_response = json_tokener_parse_ex(tokener, (char *) response->bytes, response->size);
         sc_log(DEBUG, "Received XSTS token: %s", json_object_get_string(json_response));
         json_object *json_token = json_object_object_get(json_response, "Token");
         buffer_write(details->xsts_token, json_object_get_string(json_token), json_object_get_string_len(json_token));
@@ -253,6 +254,7 @@ void authenticate_xsts(AuthenticationDetails *details) {
         curl_slist_free_all(headers);
         json_object_put(request);
         json_object_put(json_response);
+        json_tokener_free(tokener);
         buffer_free(response);
     }
     curl_easy_cleanup(curl);
@@ -431,7 +433,8 @@ void get_player_profile(AuthenticationDetails *details, ClientState *state) {
 
         CURLcode res = curl_easy_perform(curl);
 
-        json_object *json_response = json_tokener_parse((char *) response->bytes);
+        json_tokener *tokener = json_tokener_new();
+        json_object *json_response = json_tokener_parse_ex(tokener, (char *) response->bytes, response->size);
         sc_log(DEBUG, "Received player profile information: %s", json_object_get_string(json_response));
         json_object *name = json_object_object_get(json_response, "name");
         NetworkBuffer *player_name = string_buffer_new(json_object_get_string(name));
@@ -443,6 +446,7 @@ void get_player_profile(AuthenticationDetails *details, ClientState *state) {
         curl_slist_free_all(headers);
         free(auth_header);
         json_object_put(json_response);
+        json_tokener_free(tokener);
     }
     curl_easy_cleanup(curl);
 }
@@ -466,5 +470,5 @@ void authenticate(ClientState *state) {
 
     get_player_profile(state->auth_details, state);
 
-    sc_log(INFO, "Successfully received player data for player %s.", state->profile_info->name->bytes);
+    sc_log(INFO, "Successfully received player data for player %.*s.", state->profile_info->name->size, state->profile_info->name->bytes);
 }

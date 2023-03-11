@@ -419,6 +419,11 @@ typedef struct __attribute__((__packed__)) UnloadChunkPacket {
 PacketHeader *unload_chunk_header_new();
 
 
+typedef union PacketUnion {
+    SetCompressionPacket *setCompressionPacket;
+    ChunkDataPacket chunkDataPacket;
+} PacketUnion;
+
 #endif //CMC_PACKETS_H
 
 

@@ -117,7 +117,6 @@ void packet_event(Packets packet_type, PacketHeader **packet, PlayState *state) 
 		(*current_node->handle)(packet, state);
 		current_node = current_node->next;
 	}
-    sc_log(INFO, "Freeing packet after event: id %d", varint_decode((*packet)->packet_id->bytes));
 	packet_free(packet);
 }
 
@@ -188,6 +187,7 @@ void *handle_packets(void *wrapper_arg) {
                         return NULL;
 					}
 					case ENCRYPTION_REQUEST_ID: {
+                        sc_log(INFO, "works");
                         sc_log(INFO, "Received encryption request.");
 						EncryptionRequestPacket packet = {._header = encryption_request_header_new()};
 						packet_decode(&packet._header, generic_packet->data);
@@ -226,9 +226,15 @@ void *handle_packets(void *wrapper_arg) {
 						break;
 					}
 					case SET_COMPRESSION_ID: {
-						SetCompressionPacket packet = {._header = set_compression_header_new()};
-                        packet_decode(&packet._header, generic_packet->data);
+                        SetCompressionPacket packet = {._header = set_compression_header_new()};
+                        sc_log(INFO, "Should copy to %p", &(packet._header) + 1);
+                        packet_decode((PacketHeader **) &packet, generic_packet->data);
 
+                        if (packet.threshold == NULL) {
+                            sc_log(INFO, "Null");
+                        }
+                        sc_log(INFO, "Threshold is: %d", varint_decode(packet.threshold->bytes));
+                        sc_log(INFO, "Size: %d", packet.threshold->size);
                         set_compression_threshold(varint_decode(packet.threshold->bytes));
                         sc_log(INFO, "Enabled compression.");
                         packet_event(SET_COMPRESSION_PKT, &packet._header, state);

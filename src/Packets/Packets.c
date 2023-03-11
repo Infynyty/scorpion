@@ -42,6 +42,8 @@ void generic_packet_free(GenericPacket *packet) {
     free(packet);
 }
 
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 void packet_free(PacketHeader **packet) {
     if (packet == NULL || *packet == NULL) return;
     void *ptr = ((PacketHeader **) (packet)) + 1;
@@ -101,14 +103,13 @@ void packet_free(PacketHeader **packet) {
     }
     ptr = NULL;
     int32_t id = varint_decode((*(packet))->packet_id->bytes);
-    sc_log(INFO, "Freeing packet with id %d", id);
-    free((*packet)->optionals);
-    free((*packet)->member_types);
-    free((*packet)->packet_id);
+    if ((*packet)->optionals != NULL) free((*packet)->optionals);
+    if ((*packet)->member_types != NULL) free((*packet)->member_types);
+    if ((*packet)->packet_id != NULL) free((*packet)->packet_id);
     free((*packet));
     (*packet) = NULL;
-    sc_log(INFO, "Done with id %d", id);
 }
+#pragma GCC pop_options
 
 static bool compression_enabled = false;
 static int32_t compression_threshold = 0;
@@ -119,6 +120,7 @@ void set_compression_threshold(int32_t threshold) {
         compression_enabled = true;
     }
 }
+
 
 static bool encryption_enabled = false;
 
@@ -243,6 +245,7 @@ NetworkBuffer *packet_encode(PacketHeader **header) {
     return buffer;
 }
 
+
 NetworkBuffer *packet_compress(NetworkBuffer *packet) {
     NetworkBuffer *compressed = buffer_new();
     if (packet->size > compression_threshold) {
@@ -271,6 +274,7 @@ NetworkBuffer *packet_compress(NetworkBuffer *packet) {
     return compressed;
 }
 
+
 NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
     NetworkBuffer *encrypted = buffer_new();
     unsigned char temp[packet->size + EVP_CIPHER_block_size(EVP_aes_128_cfb8()) - 1];
@@ -283,6 +287,7 @@ NetworkBuffer *packet_encrypt(NetworkBuffer *packet) {
     buffer_free(packet);
     return encrypted;
 }
+
 
 void packet_send(PacketHeader **header) {
     NetworkBuffer *packet = packet_encode(header);
@@ -304,13 +309,14 @@ void packet_send(PacketHeader **header) {
     buffer_free(packet);
 }
 
-/** Receive **/
 
+/** Receive **/
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
-    void *ptr = ((PacketHeader **) (header)) + 1;
+    void *ptr = header + 1;
     for (int i = 0; i < (*header)->members; ++i) {
         PacketField field = (*header)->member_types[i];
-
         bool *is_optional = (*header)->optionals[i];
         if (is_optional != NULL && !(*is_optional)) {
             ptr = (void *) ptr;
@@ -345,7 +351,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             }
             case PKT_INT32: {
                 int32_t int32 = buffer_read(int32_t, generic_packet);
-                int32 = ntohl(int32);
+                int32 = (int32_t) ntohl(int32);
                 variable_pointer = &int32;
                 variable_size = sizeof(int32_t);
                 break;
@@ -385,7 +391,8 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 break;
             }
             case PKT_VARINT: {
-                MCVarInt *var_int = varint_encode(buffer_read_varint(generic_packet));
+                int32_t int32 = buffer_read_varint(generic_packet);
+                MCVarInt *var_int = varint_encode(int32);
                 variable_pointer = &var_int;
                 variable_size = sizeof(MCVarInt *);
                 break;
@@ -462,10 +469,12 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 sc_log(ERR, "Tried decoding unhandled generic_packet field %d", field);
                 exit(EXIT_FAILURE);
         }
-        memcpy(ptr, variable_pointer, variable_size);
+        memmove(ptr, variable_pointer, variable_size);
         ptr += variable_size;
     }
 }
+#pragma GCC pop_options
+
 
 uint8_t receive_byte() {
     unsigned char byte;
@@ -506,6 +515,8 @@ int32_t receive_varint() {
     return result;
 }
 
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 GenericPacket *packet_receive_single() {
     GenericPacket *packet = malloc(sizeof(GenericPacket));
     if (!compression_enabled) {
@@ -562,6 +573,7 @@ GenericPacket *packet_receive_single() {
     }
     return packet;
 }
+#pragma GCC pop_options
 
 void *packet_receive(void *list_arg) {
     GenericPacketList *list = list_arg;

@@ -53,6 +53,8 @@ add_executable(scorpion
 add_compile_definitions(ACTIVE_LOG_LEVEL=INFO)
 add_compile_definitions(ENABLE_TESTS)
 
+#set(CMAKE_C_FLAGS_DEBUG "-O1")
+
 find_package(CURL REQUIRED)
 target_link_libraries(scorpion CURL::libcurl)
 find_package(ZLIB REQUIRED)

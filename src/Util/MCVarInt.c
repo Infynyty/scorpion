@@ -22,7 +22,7 @@ void write_int_to_bit_array(int givenInt, bool *array) {
 	}
 }
 
-void int_bitarray_to_varint_bitarray(bool *array, int *size) {
+void int_bitarray_to_varint_bitarray(bool *array, char *size) {
 
 	for (int current_byte = 0; current_byte < MAX_VARINT_LENGTH_IN_BYTES; ++current_byte) {
 		bool are_next_bytes_used = false;
@@ -50,19 +50,19 @@ void bitarray_to_bytearray(const bool *array, uint8_t *byteArray) {
 	for (int i = 0; i < 5; ++i) {
 		uint8_t byte = 0;
 		for (int j = 0; j < 8; ++j) {
-			byte += pow(2, j) * array[(i * 8) + j];
+			byte += (uint8_t) pow(2, j) * array[(i * 8) + j];
 		}
 		byteArray[i] = byte;
 	}
 }
 
-MCVarInt *varint_encode(unsigned int givenInt) {
+MCVarInt *varint_encode(int givenInt) {
 	MCVarInt *varInt = malloc(sizeof *varInt);
 	bool array[40] = {0};
 	write_int_to_bit_array(givenInt, array);
 
 
-	int byte_array_size = 1;
+	char byte_array_size = 1;
 	int_bitarray_to_varint_bitarray(array, &byte_array_size);
 
 	uint8_t byteArray[5] = {0};
@@ -70,7 +70,7 @@ MCVarInt *varint_encode(unsigned int givenInt) {
 	bitarray_to_bytearray(array, byteArray);
 	varInt->size = byte_array_size;
 	//TODO: fix
-	memcpy(varInt->bytes, byteArray, 5);
+	memmove(varInt->bytes, byteArray, 5);
 	return varInt;
 }
 

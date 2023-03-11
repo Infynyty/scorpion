@@ -51,6 +51,12 @@ bool is_index_in_bounds(PriorityQueue *queue, uint32_t index) {
 void sift_up(BlockNode **array, uint32_t index) {
     uint32_t current_index = index;
     while (current_index != 0) {
+        if (current_index < 0 || get_parent_index(current_index) < 0) {
+            sc_log(ERR, "Incorrect index reading");
+        }
+        if (current_index > 99999 || get_parent_index(current_index) > 99999) {
+            sc_log(ERR, "Incorrect index reading");
+        }
         if (array[current_index]->distance > array[get_parent_index(current_index)]->distance) break;
         swap_elems(array, current_index, get_parent_index(current_index));
         current_index = get_parent_index(current_index);
@@ -120,6 +126,12 @@ typedef struct SearchArea {
     uint16_t y_length;
     uint16_t z_length;
 } SearchArea;
+
+void search_area_free(SearchArea *area) {
+    if (area == NULL) return;
+    position_free(area->abs_pos_of_origin);
+    free(area);
+}
 
 NodePosition *index_to_rel_pos(SearchArea *area, uint16_t index_one) {
     uint16_t blocks_per_x = 1;
@@ -239,13 +251,17 @@ Position **translate_parents(uint32_t *parents, uint32_t goal_index, uint32_t st
     memmove(steps, &counter, sizeof(uint32_t));
     Position **positions = malloc(sizeof(Position *) * counter);
     current = goal_index;
-    for (int i = 0; i < counter; i++) {
+    for (int i = 0; i < counter - 1; i++) {
         Position *pos = index_to_abs_pos(area, current);
         pos->x += 0.5f;
         pos->z += 0.5f;
         positions[counter - 1 - i] = pos;
         current = parents[current];
     }
+    Position *pos = index_to_abs_pos(area, current);
+    pos->x += 0.5f;
+    pos->z += 0.5f;
+    positions[0] = pos;
     return positions;
 }
 
@@ -264,7 +280,7 @@ Position** find_path(Position *start, Position *goal, WorldState *state, uint32_
     SearchArea *area = search_area_new(start_copy, goal);
     PriorityQueue *queue = priority_queue_new(100000);
     uint16_t *costs = malloc(sizeof(uint16_t) * area->x_length * area->y_length * area->z_length);
-    uint32_t *parents = malloc(sizeof(uint16_t) * area->x_length * area->y_length * area->z_length);
+    uint32_t *parents = malloc(sizeof(uint32_t) * area->x_length * area->y_length * area->z_length);
     for (int i = 0; i < area->x_length * area->y_length * area->z_length; i++) {
         costs[i] = UINT16_MAX;
     }
@@ -311,6 +327,11 @@ Position** find_path(Position *start, Position *goal, WorldState *state, uint32_
     uint32_t steps = 0;
     Position **result = translate_parents(parents, goal_index, start_index, area, &steps);
     memmove(counter, &steps, sizeof(uint32_t));
+    free(parents);
+    free(costs);
+    position_free(start_copy);
+    search_area_free(area);
+    priority_queue_free(queue);
     print_result(result, steps);
     return result;
 }

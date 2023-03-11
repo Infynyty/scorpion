@@ -21,7 +21,7 @@ void print_disconnect_login(void *packet, PlayState *state) {
 
 void handle_login_success(void *packet, PlayState *state) {
 	LoginSuccessPacket *success = packet;
-    sc_log(INFO, "Logged in with username %s.", success->username->bytes);
+    sc_log(INFO, "Logged in with username %.*s.", success->username->size, success->username->bytes);
 }
 
 void handle_login_play(void *packet, PlayState *state) {
@@ -131,7 +131,8 @@ void handle_login(ClientState *client) {
     free(temp);
     BN_free(bn);
 
-    sc_log(INFO, "Sent login data for player %s with UUID %.32s.",
+    sc_log(INFO, "Sent login data for player %.*s with UUID %.32s.",
+           client->profile_info->name->size,
            client->profile_info->name->bytes,
            client->profile_info->uuid->bytes
     );
@@ -158,8 +159,8 @@ void print_ascii_art() {
     printf("           █▌▌          ██▌                                                     \n");
     printf("          ▐▀█▌┌       ▄▄██▌                                                     \n");
     printf("     ▄▄▄██═██▌─└┐         ╒█▀└▀▀ ▄█▀└▀█─█▀└└▀█ █▌╙▀█  █▌▀▀█ █ ▄█▀└╙█▄ ██▄   █   \n");
-    printf("    ╝└     ─███▌╓██▄      └▀▀██▄ █      █    █ ██╗▄▀  ██▄█▀ █▐█     █ █ ▀█▄ █   \n");
-    printf("   ┘       └██▄┘████▄┌    █▄▄▄▄▀ ▀█▄▄▄▀ ▀█▄▄█▀ █▌ ╙█▄┌█▌    █ ▀▀▄▄▄█▀ █   ▀██   \n");
+    printf("    ╝└     ─███▌╓██▄      └▀▀██▄ █      █    █ ██╗▄▀  ██▄█▀ █ █     █ █ ▀█▄ █   \n");
+    printf("   ┘       └██▄┘████▄┌    █▄▄▄▄▀ ▀█▄▄▄▀ ▀█▄▄█▀ █▌ ╙█▄┌█▌    █ ▀█▄▄▄█▀ █   ▀██   \n");
     printf("        ╓▄█▀▀██▄┌┘╙▀╒┘└─┌───┌╓┌                                                 \n");
     printf("       ▐▀└─  └└▀█▄▄┌───┐┌─└▄▀▀▀▀█▄▄▄                                            \n");
     printf("       ▌        ╒█▀███▄▄▄▄█└────└▀▀█▌└┐                                         \n");
@@ -178,8 +179,12 @@ int main() {
     print_ascii_art();
 #ifdef ENABLE_TESTS
     sc_log(INFO, "Running tests...");
-    run_tests();
-    sc_log(INFO, "Done.");
+    int test_result = run_tests();
+    if (test_result == EXIT_FAILURE) {
+        sc_log(ERR, "Stopping because of failed tests.");
+        exit(EXIT_FAILURE);
+    }
+    sc_log(INFO, "Tests complete.");
 #endif
 
     PlayState *play_state = play_state_new();

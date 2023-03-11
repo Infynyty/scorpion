@@ -10,7 +10,7 @@ typedef struct MCVarInt {
 	uint8_t bytes[5];
 } __attribute__((__packed__)) MCVarInt;
 
-MCVarInt *varint_encode(unsigned int givenInt);
+MCVarInt *varint_encode(int givenInt);
 
 int varint_receive(SocketWrapper *socket);
 
