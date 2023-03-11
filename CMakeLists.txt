@@ -50,10 +50,10 @@ add_executable(scorpion
         test/Tests.c
         test/Tests.h)
 
-add_compile_definitions(ACTIVE_LOG_LEVEL=INFO)
-add_compile_definitions(ENABLE_TESTS)
-
-#set(CMAKE_C_FLAGS_DEBUG "-O1")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(ENABLE_TESTS)
+    add_compile_definitions(ACTIVE_LOG_LEVEL=DEBUG)
+endif()
 
 find_package(CURL REQUIRED)
 target_link_libraries(scorpion CURL::libcurl)

@@ -227,14 +227,7 @@ void *handle_packets(void *wrapper_arg) {
 					}
 					case SET_COMPRESSION_ID: {
                         SetCompressionPacket packet = {._header = set_compression_header_new()};
-                        sc_log(INFO, "Should copy to %p", &(packet._header) + 1);
                         packet_decode((PacketHeader **) &packet, generic_packet->data);
-
-                        if (packet.threshold == NULL) {
-                            sc_log(INFO, "Null");
-                        }
-                        sc_log(INFO, "Threshold is: %d", varint_decode(packet.threshold->bytes));
-                        sc_log(INFO, "Size: %d", packet.threshold->size);
                         set_compression_threshold(varint_decode(packet.threshold->bytes));
                         sc_log(INFO, "Enabled compression.");
                         packet_event(SET_COMPRESSION_PKT, &packet._header, state);

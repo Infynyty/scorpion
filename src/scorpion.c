@@ -78,7 +78,7 @@ void handle_init_pos(void *packet, PlayState *state) {
 void handle_update_chunk(void *packet, PlayState *state) {
     ChunkDataPacket *data = (ChunkDataPacket *) packet;
     add_chunk(data, state->worldState);
-    sc_log(INFO, "Updated chunk at %d, %d", data->chunk_x, data->chunk_z);
+    sc_log(DEBUG, "Updated chunk at %d, %d", data->chunk_x, data->chunk_z);
 }
 
 void handle_remove_chunk(void *packet, PlayState *state) {

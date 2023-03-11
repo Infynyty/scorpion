@@ -30,9 +30,7 @@ MunitResult test_packet_decoding(const MunitParameter params[], void* user_data_
     packet_decode(&packet._header, mock_packet);
 
     void *ptr = (&(packet._header)) + 1;
-    sc_log(INFO, "Should point to %p", ptr);
     MCVarInt **var_ptr = ptr;
-    sc_log(INFO, "Memory at %p: %p", ptr,  (*var_ptr));
 
 
     int32_t id = varint_decode(packet._header->packet_id->bytes);

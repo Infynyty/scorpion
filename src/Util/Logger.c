@@ -9,7 +9,7 @@
 #include "Logger.h"
 
 #ifndef ACTIVE_LOG_LEVEL
-define ACTIVE_LOG_LEVEL INFO
+#define ACTIVE_LOG_LEVEL INFO
 #endif
 
 // TODO: Reimplement colors

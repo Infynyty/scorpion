@@ -454,7 +454,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 break;
             }
             case PKT_SKIP: {
-                sc_log(WARN, "Skipping packet fields for packet with id 0x%x.",
+                sc_log(DEBUG, "Skipping packet fields for packet with id 0x%x.",
                        varint_decode((*header)->packet_id->bytes));
                 return;
             }
