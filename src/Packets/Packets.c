@@ -40,8 +40,8 @@ void generic_packet_free(GenericPacket *packet) {
     free(packet);
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+//#pragma GCC push_options
+//#pragma GCC optimize("O0")
 void packet_free(PacketHeader **packet) {
     if (packet == NULL || *packet == NULL) return;
     void *ptr = ((PacketHeader **) (packet)) + 1;
@@ -100,14 +100,13 @@ void packet_free(PacketHeader **packet) {
         }
     }
     ptr = NULL;
-    int32_t id = varint_decode((*(packet))->packet_id->bytes);
     if ((*packet)->optionals != NULL) free((*packet)->optionals);
     if ((*packet)->member_types != NULL) free((*packet)->member_types);
     if ((*packet)->packet_id != NULL) free((*packet)->packet_id);
     free((*packet));
     (*packet) = NULL;
 }
-#pragma GCC pop_options
+//#pragma GCC pop_options
 
 static bool compression_enabled = false;
 static int32_t compression_threshold = 0;
@@ -528,8 +527,8 @@ int32_t receive_varint() {
     return result;
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+//#pragma GCC push_options
+//#pragma GCC optimize("O0")
 GenericPacket *packet_receive_single() {
     GenericPacket *packet = malloc(sizeof(GenericPacket));
     if (!compression_enabled) {
@@ -551,15 +550,20 @@ GenericPacket *packet_receive_single() {
         }
         int32_t uncompressed_length = receive_varint();
         MCVarInt *temp = varint_encode(uncompressed_length);
+        uLongf uncompressed_length_ext = (uLongf) uncompressed_length;
         NetworkBuffer *compressed_data = receive_bytes(compressed_length - temp->size);
-        free(temp);
+
 
         if (uncompressed_length != 0) {
-            char uncompressed_data_temp[uncompressed_length];
-            uncompress((Bytef *) uncompressed_data_temp,
-                       (uLongf *) &uncompressed_length,
+            char *uncompressed_data_temp = malloc(sizeof(char) * uncompressed_length);
+            int ret = uncompress((Bytef *) uncompressed_data_temp,
+                       (uLongf *) &uncompressed_length_ext,
                        (Bytef *) compressed_data->bytes,
-                       (uLong) compressed_length);
+                       (uLong) (compressed_length - temp->size));
+            if (ret != Z_OK) {
+                sc_log(ERR, "Failed to uncompress data with error code %d.", ret);
+                exit(EXIT_FAILURE);
+            }
             NetworkBuffer *uncompressed_data = buffer_new();
             buffer_write(
                     uncompressed_data,
@@ -574,6 +578,7 @@ GenericPacket *packet_receive_single() {
             packet->packet_id = packet_id;
             packet->data = uncompressed_data;
             buffer_free(compressed_data);
+            free(uncompressed_data_temp);
         } else {
             uint32_t packet_id = buffer_read_varint(compressed_data);
 
@@ -583,10 +588,11 @@ GenericPacket *packet_receive_single() {
             packet->packet_id = packet_id;
             packet->data = compressed_data;
         }
+        free(temp);
     }
     return packet;
 }
-#pragma GCC pop_options
+//#pragma GCC pop_options
 
 void *packet_receive(void *list_arg) {
     GenericPacketList *list = list_arg;

@@ -29,8 +29,8 @@ typedef enum PacketDirection {
 
 typedef struct GenericPacket {
 	bool is_compressed;
-	uint8_t compressed_length;
-	uint8_t uncompressed_length;
+	int32_t compressed_length;
+	int32_t uncompressed_length;
 	uint8_t compressed_packet_id;
 	uint8_t packet_id;
 	NetworkBuffer *data;
