@@ -187,7 +187,6 @@ void *handle_packets(void *wrapper_arg) {
                         return NULL;
 					}
 					case ENCRYPTION_REQUEST_ID: {
-                        sc_log(INFO, "works");
                         sc_log(INFO, "Received encryption request.");
 						EncryptionRequestPacket packet = {._header = encryption_request_header_new()};
 						packet_decode(&packet._header, generic_packet->data);

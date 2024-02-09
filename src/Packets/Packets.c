@@ -5,8 +5,6 @@
 #include "Logger.h"
 #include "NBTParser.h"
 #include "zlib.h"
-#include <openssl/ssl.h>
-#include <openssl/rsa.h>
 #include <openssl/rand.h>
 #include <arpa/inet.h>
 #include <pthread.h>
@@ -311,8 +309,8 @@ void packet_send(PacketHeader **header) {
 
 
 /** Receive **/
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+//#pragma GCC push_options
+//#pragma GCC optimize("O0")
 void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
     void *ptr = header + 1;
     for (int i = 0; i < (*header)->members; ++i) {
@@ -324,8 +322,9 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
             continue;
         }
 
-        void *variable_pointer;
+        void *variable_pointer = NULL;
         size_t variable_size;
+
         switch (field) {
             case PKT_BOOL:
             case PKT_BYTE:
@@ -333,6 +332,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 uint8_t uint8 = buffer_read(uint8_t, generic_packet);
                 variable_pointer = &uint8;
                 variable_size = sizeof(uint8_t);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_UINT16: {
@@ -340,6 +340,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 uint16 = ntohs(uint16);
                 variable_pointer = &uint16;
                 variable_size = sizeof(uint16_t);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_UINT32: {
@@ -347,6 +348,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 uint32 = ntohl(uint32);
                 variable_pointer = &uint32;
                 variable_size = sizeof(uint32_t);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_INT32: {
@@ -354,6 +356,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 int32 = (int32_t) ntohl(int32);
                 variable_pointer = &int32;
                 variable_size = sizeof(int32_t);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_UINT64: {
@@ -366,6 +369,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
 #endif
                 variable_pointer = &uint64;
                 variable_size = sizeof(uint64_t);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_FLOAT: {
@@ -377,6 +381,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 buffer_free(swap);
                 variable_pointer = &number;
                 variable_size = sizeof(float);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_DOUBLE: {
@@ -388,6 +393,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 buffer_free(swap);
                 variable_pointer = &number;
                 variable_size = sizeof(double);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_VARINT: {
@@ -395,6 +401,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 MCVarInt *var_int = varint_encode(int32);
                 variable_pointer = &var_int;
                 variable_size = sizeof(MCVarInt *);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_UUID: {
@@ -408,6 +415,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 free(temp);
                 variable_pointer = &uuid;
                 variable_size = sizeof(NetworkBuffer *);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_BYTEARRAY: {
@@ -415,6 +423,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 buffer_read_array(generic_packet, bytes);
                 variable_pointer = &bytes;
                 variable_size = sizeof(NetworkBuffer *);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_STRING_ARRAY: {
@@ -425,6 +434,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 }
                 variable_pointer = &strings;
                 variable_size = sizeof(NetworkBuffer *);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_CHAT:
@@ -432,7 +442,9 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 NetworkBuffer *string = buffer_new();
                 buffer_read_array(generic_packet, string);
                 variable_pointer = &string;
+                //*((NetworkBuffer**)ptr) = variable_pointer;
                 variable_size = sizeof(NetworkBuffer *);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_NBTTAG: {
@@ -440,6 +452,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 consume_nbt_data(generic_packet);
                 variable_pointer = &nbt;
                 variable_size = sizeof(NetworkBuffer *);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_LOGIN_PROPERTIES: {
@@ -451,6 +464,7 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 free(temp);
                 variable_pointer = &properties;
                 variable_size = sizeof(NetworkBuffer *);
+                memcpy(ptr, variable_pointer, variable_size);
                 break;
             }
             case PKT_SKIP: {
@@ -469,11 +483,10 @@ void packet_decode(PacketHeader **header, NetworkBuffer *generic_packet) {
                 sc_log(ERR, "Tried decoding unhandled generic_packet field %d", field);
                 exit(EXIT_FAILURE);
         }
-        memmove(ptr, variable_pointer, variable_size);
         ptr += variable_size;
     }
 }
-#pragma GCC pop_options
+//#pragma GCC pop_options
 
 
 uint8_t receive_byte() {
